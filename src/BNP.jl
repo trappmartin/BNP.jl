@@ -12,6 +12,9 @@ module BNP
     include("distfunctions.jl")
 
     include("utils.jl")
+    include("common.jl")
+
+    include("datasets.jl")
 
     include("dpmm.jl") # Dirichlet Process Mixture Model
 
@@ -46,7 +49,14 @@ module BNP
     end
 
     abstract SamplingType
-    type Gibbs <: SamplingType end
+    type Gibbs <: SamplingType
+        burnin::Int
+        thinout::Int
+        maxiter::Int
+
+        Gibbs(; burnin = 0, thinout = 1, maxiter = 100) = new(burnin, thinout, maxiter)
+
+    end
 
     abstract InitialisationType
 
@@ -65,44 +75,44 @@ module BNP
     type IncrementalInitialisation <: InitialisationType end
 
     # define helper functions
-    function train(model::DPM, sampler::Gibbs, init::RandomInitialisation, X::Array; burnin = 0, thinout = 1, maxiter = 100)
+    function train(model::DPM, sampler::Gibbs, init::RandomInitialisation, X::Array)
 
       # init
       (Z, G) = init_random_dpmm(X, model.H, k = init.k)
 
       # inference
-      return train_cgibbs_dpmm(X, model.H, Z, G, DPMHyperparam(), alpha = model.α, burnin = burnin, thinout = thinout, maxiter = maxiter)
+      return train_cgibbs_dpmm(X, model.H, Z, G, DPMHyperparam(), alpha = model.α, burnin = sampler.burnin, thinout = sampler.thinout, maxiter = sampler.maxiter)
 
     end
 
-    function train(model::DPM, sampler::Gibbs, init::KMeansInitialisation, X::Array; burnin = 0, thinout = 1, maxiter = 100)
+    function train(model::DPM, sampler::Gibbs, init::KMeansInitialisation, X::Array)
 
       # init
       (Z, G) = init_kmeans_dpmm(X, model.H, k = init.k)
 
       # inference
-      return train_cgibbs_dpmm(X, model.H, Z, G, DPMHyperparam(), alpha = model.α, burnin = burnin, thinout = thinout, maxiter = maxiter)
+      return train_cgibbs_dpmm(X, model.H, Z, G, DPMHyperparam(), alpha = model.α, burnin = sampler.burnin, thinout = sampler.thinout, maxiter = sampler.maxiter)
 
     end
 
-    function train(model::VCM, sampler::Gibbs, init::IncrementalInitialisation, X::Array; burnin = 0, thinout = 1, maxiter = 100)
+    function train(model::VCM, sampler::Gibbs, init::IncrementalInitialisation, X::Array)
 
       # init
       B = init_incremental_vcm(X, VCMHyperparam(); α = model.α)
 
       # inference
-      return train_gibbs_vcm(B, VCMHyperparam(), α = model.α, burnin = burnin, thinout = thinout, maxiter = maxiter)
+      return train_gibbs_vcm(B, VCMHyperparam(), α = model.α, burnin = sampler.burnin, thinout = sampler.thinout, maxiter = sampler.maxiter)
 
     end
 
-    function train(model::HDP, sampler::Gibbs, init::RandomInitialisation, X::Array{Array}; burnin = 0, thinout = 1, maxiter = 100)
+    function train(model::HDP, sampler::Gibbs, init::RandomInitialisation, X::Array{Array})
 
       # init
       (Z, G) = init_random_hdp(X, model.H, k = init.k)
 
       # inference
 
-      return train_gibbs_hdp(X, model.H, Z, G, HDPHyperparam(), init.k, α = model.α, γ = model.γ, maxiter = maxiter)
+      return train_gibbs_hdp(X, model.H, Z, G, HDPHyperparam(), init.k, α = model.α, γ = model.γ, maxiter = sampler.maxiter)
 
     end
 
@@ -132,11 +142,20 @@ module BNP
       HDPData,
 
       # Distributions
+      ConjugatePostDistribution,
       GaussianWishart,
       MultinomialDirichlet,
 
       # training method
       train,
+
+      # expose Distribution functions
+      add_data!,
+      remove_data!,
+      logpred,
+
+      # expose utility functions
+      rand_indices,
 
       # dataset generation
       generateBarsDataset

@@ -1,5 +1,5 @@
 "Dirichlet Process Mixture Model Hyperparameters"
-immutable DPMHyperparam
+immutable DPMHyperparam <: AbstractHyperparam
 
   γ_a::Float64
   γ_b::Float64
@@ -10,7 +10,7 @@ immutable DPMHyperparam
 end
 
 "Dirichlet Process Mixture Model Data Object"
-immutable DPMData
+type DPMData <: AbstractModelData
 
   # Energy
   energy::Float64
@@ -24,9 +24,12 @@ immutable DPMData
   # Assignments
   Z::Array{Int}
 
+  # Weights
+  W::Array{Float64}
+
 end
 
-type DPMBuffer
+type DPMBuffer <: AbstractModelBuffer
 
   # ids used for random access
   ids::Array{Int}
@@ -184,6 +187,34 @@ function cgibbs_crp_dpmm!(B::DPMBuffer)
   B
 end
 
+"Compute Energy of model for given data"
+function compute_energy!(B::DPMData, X::Array)
+
+  E = 0.00001
+
+  for xi in 1:size(X, 2)
+
+    pp = 0.0
+    c = 0
+
+    for i = 1:length(B.W)
+      p = exp( logpred( B.G[i], X[:,xi] ) ) * B.W[i]
+
+      # only sum over actual values (excluding nans)
+      if p == p
+        pp += p
+        c += 1
+      end
+    end
+
+    E += pp
+
+  end
+
+  B.energy = log( E / size(X, 2) )
+
+end
+
 "Training Dirichlet Process Mixture Model using collabsed Gibbs sampling"
 function train_cgibbs_dpmm(X::Array, G0::ConjugatePostDistribution, Z::Array{Int}, G::Array{ConjugatePostDistribution}, hyper::DPMHyperparam; alpha = 1.0, burnin = 0, thinout = 1, maxiter = 100)
 
@@ -235,11 +266,14 @@ function train_cgibbs_dpmm(X::Array, G0::ConjugatePostDistribution, Z::Array{Int
       B.alpha = random_concentration_parameter(B.alpha, hyper.γ_a, hyper.γ_b, B.N, B.K)
     end
 
-    # TODO: compute energy
-    e = 0.0
+    # record model
+    model = DPMData(0.0, deepcopy(B.alpha), deepcopy(B.G), deepcopy(B.Z), map(i -> B.C[i] / (B.N + B.alpha - 1), 1:B.K))
+
+    # compute energy
+    compute_energy!(model, X)
 
     # record results
-    push!(results, DPMData(e, deepcopy(B.alpha), deepcopy(B.G), deepcopy(B.Z)) )
+    push!(results, model)
   end
 
   return results

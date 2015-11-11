@@ -1,5 +1,5 @@
 "Variable Clustering Model Hyperparameters"
-immutable VCMHyperparam
+immutable VCMHyperparam <: AbstractHyperparam
 
   μ_x::Float64
   σ_x::Float64
@@ -24,7 +24,7 @@ immutable VCMHyperparam
 end
 
 "Variable Clustering Model Data Object"
-immutable VCMData
+type VCMData <: AbstractModelData
 
     # energy
     energy::Float64
@@ -52,7 +52,7 @@ immutable VCMData
 
 end
 
-type VCMBuffer
+type VCMBuffer <: AbstractModelBuffer
 
   μ_x::Float64
   σ_x::Float64
