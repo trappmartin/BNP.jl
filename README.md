@@ -1,27 +1,25 @@
 # BNP.jl
+BNP.jl is a Julia package implementing state of the art **Bayesian nonparametric** models for medium-sized unsupervised problems. 
+The software package brings Bayesian nonparametrics to non-specialists allowing the widespread use of Bayesian nonparametric models. 
+Emphasis is put on consistency, performance and ease of use allowing easy access to Bayesian nonparametric models inside Julia.
 
-BNP is a Julia (julialang.org) package implementing **Bayesian nonparametric** methods.
-
-## Usage
-Notes on the usage will follow, for now please take a look at the **playground** folder.
+## Documentation
+http://bnpjl.readthedocs.org/en/latest/
 
 ## Contents
-The following methods are **currently supported** by BNP:
-- Dirichlet Process Mixture Model (Gibbs with CRP)
-- nonparametric Variable Clustering Model (Gibbs with CRP)
-- Hierarchical Dirichlet Process Mixture Model (Gibbs with Beta Variables)
+The following methods are currently supported:
 
-The following methods are **under development or planned**:
-- CrossCat Model (Gibbs)
-- Distance Depending Chinese Restaurant Process (Gibbs)
-- Distance Depending Chinese Restaurant Franchise (Gibbs)
-- ( Hierarchical Dirichlet Process Model (Gibbs with CRF) )
-- Indian Buffet Process (Gibbs)
-- Tree-Structured Stick Breaking (Gibbs)
+- Dirichlet Process Mixture Model
+- nonparametric Variable Clustering Model
+- Hierarchical Dirichlet Process Mixture Model
 
-## Examples
-Examples can be found in the playground folder.
+The following methods are under development or planned:
 
-### Development
-Want to contribute? Great! 
-Feel free to checkout and contact me!
+- CrossCat Model
+- Distance Depending Chinese Restaurant Process
+- Distance Depending Chinese Restaurant Franchise
+- Indian Buffet Process
+- Multimodal Hierarchical Dirichlet Processes
+
+## Demos
+Interactive examples can be found in the demos folder. Please make sure to check out the IJulia notebook for proper visualisations and interactivity
