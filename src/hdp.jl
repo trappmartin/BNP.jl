@@ -1,5 +1,5 @@
 "Hierarchical Dirichlet Process Mixture Model Hyperparameters"
-immutable HDPHyperparam
+immutable HDPHyperparam <: AbstractHyperparam
 
   γ_a::Float64
   γ_b::Float64
@@ -13,7 +13,7 @@ immutable HDPHyperparam
 end
 
 "Hierarchical Dirichlet Process Mixture Model Data Object"
-immutable HDPData
+type HDPData <: AbstractModelData
 
   # Energy
   energy::Float64
@@ -26,7 +26,7 @@ immutable HDPData
 
 end
 
-type HDPBuffer
+type HDPBuffer <: AbstractModelBuffer
 
   # samples
   X::Array{Array}
@@ -77,6 +77,8 @@ end
 
 "HDP initialization using random assignments."
 function init_random_hdp(samples::Array{Array}, G0::ConjugatePostDistribution; k::Int = 10)
+
+    # TODO make sure the code is type-stable and Julia 0.4 compatible
 
     Z = Array(Array, length(samples))
     G = ConjugatePostDistribution[]
@@ -155,6 +157,8 @@ function gibbs_beta_hdp!(B::HDPBuffer)
               prob[k] = llh + log( prior )
             end
 
+            #prob[1:B.K] = pmap(k -> logpred(B.G[k], data[i])[1] + log(B.C[k, j] + B.β[k] * B.α), 1:B.K)
+
             prob[B.K + 1] = logpred(B.G0, data[i])[1] + log( B.β[B.K+1] * B.α )
 
             prob = exp(prob - maximum(prob))
@@ -172,7 +176,7 @@ function gibbs_beta_hdp!(B::HDPBuffer)
                 b = b * B.β[end]
                 B.β = cat(1, B.β, 1)
                 B.β[end-1:end] = b
-                B.C = cat(1, B.C, zeros(1, B.N0))
+                B.C = cat(1, B.C, zeros(Int, 1, B.N0))
                 prob = zeros(B.K + 1) * -Inf
             end
 
@@ -184,45 +188,12 @@ function gibbs_beta_hdp!(B::HDPBuffer)
     end
 
     # sample number of tables
-    kk = maximum([0, B.K-length(B.totalnt)])
-    B.totalnt = cat(2, B.totalnt - sum(B.classnt, 1), zeros(1, kk))
-    B.classnt = randnumtable(B.α .* B.β[:,ones(B.N0)]', B.C')
+    kk = maximum([0, B.K - length(B.totalnt)])
+    B.totalnt = cat(2, B.totalnt - sum(B.classnt, 1), zeros(Int, 1, kk))
+    B.classnt = randnumtable(B.α .* B.β[:,ones(Int, B.N0)]', B.C')
     B.totalnt = B.totalnt + sum(B.classnt, 1)
 
-    # clean up empty clusters
-    i = 1
-    notfinished = true
-
-    while (notfinished)
-
-        if isdistempty(B.G[i])
-
-            # remove cluster
-            B.G = B.G[[1:i-1, i+1:end]]
-
-            for jj in 1:B.N0
-                B.Z[jj][B.Z[jj] .> i] -= 1
-            end
-
-            B.β = B.β[[1:i-1, i+1:end]]
-
-            B.classnt = B.classnt[:,[1:i-1, i+1:end]]
-            B.totalnt = B.totalnt[[1:i-1, i+1:end]]'
-
-            i -= 1
-            B.K -= 1
-        end
-
-        i += 1
-
-        if B.K < i
-            notfinished = false
-        end
-
-    end
-
     # update beta weights
-
     a = zeros(B.K + 1)
     a[1:end-1] = B.totalnt
     a[end] = B.γ
@@ -230,6 +201,41 @@ function gibbs_beta_hdp!(B::HDPBuffer)
     B.β = rand(Dirichlet(a))
 
     B
+end
+
+function compute_energy!(B::HDPData, X::Array{Array})
+
+  E = 1e-10
+  numl = 0
+
+  for j in length(X)
+
+      # get samples of group
+      data = X[j]
+
+      for i in length(data)
+        pp = 0.0
+        c = 0
+
+        for k = 1:length(B.G)
+          p = exp( logpred( B.G[k], data[i] ) ) * B.W[j, k]
+
+          # only sum over actual values (excluding nans)
+          if p == p
+            pp += p
+            c += 1
+          end
+        end
+
+        E += pp
+        numl += 1
+
+      end
+
+  end
+
+  B.energy = log( E / numl )
+
 end
 
 function train_gibbs_hdp(X::Array{Array}, G0::ConjugatePostDistribution, Z::Array{Array}, G::Array{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
@@ -245,7 +251,7 @@ function train_gibbs_hdp(X::Array{Array}, G0::ConjugatePostDistribution, Z::Arra
 
   # init step
   β = ones(K) ./ K
-  classnt = randnumtable(α * β[:,ones(N0)]', C')
+  classnt = randnumtable(α * β[:,ones(Int, N0)]', C')
   totalnt = sum(classnt, 1)
 
   # set alpha vector of Dirichlet Distribution to sample β
@@ -278,23 +284,26 @@ function train_gibbs_hdp(X::Array{Array}, G0::ConjugatePostDistribution, Z::Arra
     gibbs_beta_hdp!(B)
 
     # TODO: this should be type stable not like this!!!
-    totalnt = int(sum(B.classnt, 1))
-    B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, int(sum(B.totalnt)), B.K, maxiter=10)
-    B.α = random_concentration_parameter(B.α, hyper.α_a, hyper.α_b, int(B.Nj), int(B.totalnt))
+    totalnt = sum(B.classnt, 1)
+    B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, sum(B.totalnt), B.K, maxiter=10)
+    B.α = random_concentration_parameter(B.α, hyper.α_a, hyper.α_b, B.Nj, B.totalnt)
   end
 
   results = HDPData[]
+
+  #println("starting")
+  #addprocs(CPU_CORES)
 
   for iter = 1:maxiter
 
     for t in 1:thinout
       gibbs_beta_hdp!(B)
-
       # TODO: this should be type stable not like this!!!
-      totalnt = int(sum(B.classnt, 1))
-      B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, int(sum(B.totalnt)), B.K, maxiter=10)
-      B.α = random_concentration_parameter(B.α, hyper.α_a, hyper.α_b, int(B.Nj), int(B.totalnt))
+      totalnt = sum(B.classnt, 1)
+      B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, sum(B.totalnt), B.K, maxiter=10)
+      B.α = random_concentration_parameter(B.α, hyper.α_a, hyper.α_b, B.Nj, B.totalnt)
     end
+
 
     # TODO: compute energy
     e = 0.0
@@ -302,11 +311,10 @@ function train_gibbs_hdp(X::Array{Array}, G0::ConjugatePostDistribution, Z::Arra
     # record results
     push!(results, HDPData(e, deepcopy(B.G), deepcopy(B.Z)) )
 
-    println("iteration: ", iter, " clusters: ", B.K)
+    #println("iteration: ", iter, " clusters: ", B.K)
 
   end
 
   return results
 
 end
-

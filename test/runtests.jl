@@ -1,5 +1,5 @@
-using npBayes
+using BNP
 using Base.Test
 
-# write your own tests here
-@test 1 == 1
+# load HDP tests
+include("hdp_test.jl")
