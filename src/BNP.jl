@@ -85,7 +85,7 @@ module BNP
 
     end
 
-    function train(model::DPM, sampler::Gibbs, init::KMeansInitialisation, X::Array)
+    function train{T}(model::DPM, sampler::Gibbs, init::KMeansInitialisation, X::Array{T})
 
       # init
       (Z, G) = init_kmeans_dpmm(X, model.H, k = init.k)
@@ -105,18 +105,7 @@ module BNP
 
     end
 
-    function train(model::HDP, sampler::Gibbs, init::RandomInitialisation, X::Array{Array})
-
-      # init
-      (Z, G) = init_random_hdp(X, model.H, k = init.k)
-
-      # inference
-
-      return train_gibbs_hdp(X, model.H, Z, G, HDPHyperparam(), init.k, α = model.α, γ = model.γ, maxiter = sampler.maxiter)
-
-    end
-
-    function train(model::HDP, sampler::Gibbs, init::RandomInitialisation, X::Array{Vector})
+    function train{T <: Real}(model::HDP, sampler::Gibbs, init::RandomInitialisation, X::Vector{Vector{T}})
 
       # init
       (Z, G) = init_random_hdp(X, model.H, k = init.k)

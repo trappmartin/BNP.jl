@@ -26,10 +26,10 @@ type HDPData <: AbstractModelData
 
 end
 
-type HDPBuffer <: AbstractModelBuffer
+type HDPBuffer{T <: Real} <: AbstractModelBuffer
 
   # samples
-  X::Array
+  X::Vector{Vector{T}}
 
   # number of groups
   N0::Int
@@ -76,7 +76,7 @@ end
 
 
 "HDP initialization using random assignments."
-function init_random_hdp(samples::Array{Array}, G0::ConjugatePostDistribution; k::Int = 10)
+function init_random_hdp{T <: Real}(samples::Vector{Vector{T}}, G0::ConjugatePostDistribution; k::Int = 10)
 
     # TODO make sure the code is type-stable and Julia 0.4 compatible
 
@@ -93,10 +93,10 @@ function init_random_hdp(samples::Array{Array}, G0::ConjugatePostDistribution; k
 
             if length(idx) > 0
               if size(G, 1) < c
-                  Gc = add_data(G0, vec(int(samples[i][idx])))
+                  Gc = add_data(G0, samples[i][idx])
                   push!(G, Gc)
               else
-                  G[c] = add_data(G[c], vec(int(samples[i][idx])))
+                  G[c] = add_data(G[c], samples[i][idx])
               end
             end
         end
@@ -238,7 +238,7 @@ function compute_energy!(B::HDPData, X::Array{Array})
 
 end
 
-function train_gibbs_hdp(X::Array, G0::ConjugatePostDistribution, Z::Array{Array}, G::Array{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
+function train_gibbs_hdp{T}(X::Vector{Vector{T}}, G0::ConjugatePostDistribution, Z::Array{Array}, G::Array{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
                            α = 1.0, γ = 1.0, burnin = 0, thinout = 1, maxiter = 100)
 
   N0 = length(X)
@@ -262,7 +262,7 @@ function train_gibbs_hdp(X::Array, G0::ConjugatePostDistribution, Z::Array{Array
   # update beta
   β = rand(Dirichlet(a));
 
-  B = HDPBuffer(
+  B = HDPBuffer{T}(
     X,
     N0,
     N0idx,
