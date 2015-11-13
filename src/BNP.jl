@@ -116,6 +116,17 @@ module BNP
 
     end
 
+    function train(model::HDP, sampler::Gibbs, init::RandomInitialisation, X::Array{Vector})
+
+      # init
+      (Z, G) = init_random_hdp(X, model.H, k = init.k)
+
+      # inference
+
+      return train_gibbs_hdp(X, model.H, Z, G, HDPHyperparam(), init.k, α = model.α, γ = model.γ, maxiter = sampler.maxiter)
+
+    end
+
     # export commands
     export
       # Models

@@ -29,7 +29,7 @@ end
 type HDPBuffer <: AbstractModelBuffer
 
   # samples
-  X::Array{Array}
+  X::Array
 
   # number of groups
   N0::Int
@@ -238,7 +238,7 @@ function compute_energy!(B::HDPData, X::Array{Array})
 
 end
 
-function train_gibbs_hdp(X::Array{Array}, G0::ConjugatePostDistribution, Z::Array{Array}, G::Array{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
+function train_gibbs_hdp(X::Array, G0::ConjugatePostDistribution, Z::Array{Array}, G::Array{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
                            α = 1.0, γ = 1.0, burnin = 0, thinout = 1, maxiter = 100)
 
   N0 = length(X)
