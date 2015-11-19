@@ -19,10 +19,13 @@ type HDPData <: AbstractModelData
   energy::Float64
 
   # Distributions
-  G::Array{ConjugatePostDistribution}
+  distributions::Vector{ConjugatePostDistribution}
 
   # Assignments
-  Z::Array{Array}
+  assignments::Vector{Vector{Int}}
+
+	# Weights
+  weights::Vector{Vector{Float64}}
 
 end
 
@@ -44,7 +47,7 @@ type HDPBuffer{T <: Real} <: AbstractModelBuffer
   Njidx::Array{Vector}
 
   # assignments
-  Z::Array{Array}
+  Z::Vector{Vector{Int}}
 
   # number of active cluster
   K::Int
@@ -53,13 +56,13 @@ type HDPBuffer{T <: Real} <: AbstractModelBuffer
   C::Array{Int, 2}
 
   # total number of tables
-  totalnt::Array
+  totalnt::Array{Int}
 
   # number of clusters per table
-  classnt::Array
+  classnt::Array{Int}
 
   # distributions
-  G::Array{ConjugatePostDistribution}
+  G::Vector{ConjugatePostDistribution}
 
   # base distribution
   G0::ConjugatePostDistribution
@@ -80,13 +83,13 @@ function init_random_hdp{T <: Real}(samples::Vector{Vector{T}}, G0::ConjugatePos
 
     # TODO make sure the code is type-stable and Julia 0.4 compatible
 
-    Z = Array(Array, length(samples))
+    Z = Vector{Vector{Int}}(length(samples))
     G = ConjugatePostDistribution[]
 
     for i in 1:length(samples)
 
         cc = 1 + (collect(1:length(samples[i])) % k)
-        Z[i] = cc[randperm(length(samples[i]))]
+        Z[i] = vec( cc[randperm(length(samples[i]))] )
 
         for c in 1:k
             idx = find(Z[i] .== c)
@@ -133,20 +136,20 @@ function gibbs_beta_hdp!(B::HDPBuffer)
             if isdistempty(B.G[cluster])
 
                 # remove cluster
-                B.G = B.G[[1:cluster-1, cluster+1:end]]
+                B.G = B.G[[1:cluster-1; cluster+1:end]]
 
                 for jj in 1:B.N0
                     B.Z[jj][B.Z[jj] .> cluster] -= 1
                 end
 
-                B.β = B.β[[1:cluster-1, cluster+1:end]]
+                B.β = B.β[[1:cluster-1; cluster+1:end]]
 
-                B.classnt = B.classnt[:,[1:cluster-1, cluster+1:end]]
-                B.totalnt = B.totalnt[[1:cluster-1, cluster+1:end]]'
+                B.classnt = B.classnt[:,[1:cluster-1; cluster+1:end]]
+                B.totalnt = B.totalnt[[1:cluster-1; cluster+1:end]]'
 
                 B.K -= 1
 
-                B.C = B.C[[1:cluster-1, cluster+1:end],:]
+                B.C = B.C[[1:cluster-1; cluster+1:end],:]
                 prob = zeros(B.K + 1) * -Inf
             end
 
@@ -203,7 +206,7 @@ function gibbs_beta_hdp!(B::HDPBuffer)
     B
 end
 
-function compute_energy!(B::HDPData, X::Array{Array})
+function compute_energy!{T}(B::HDPData, X::Vector{Vector{T}})
 
   E = 1e-10
   numl = 0
@@ -217,8 +220,8 @@ function compute_energy!(B::HDPData, X::Array{Array})
         pp = 0.0
         c = 0
 
-        for k = 1:length(B.G)
-          p = exp( logpred( B.G[k], data[i] ) ) * B.W[j, k]
+        for k = 1:length(B.distributions)
+          p = exp( logpred( B.distributions[k], data[i] ) ) * B.weights[j][k]
 
           # only sum over actual values (excluding nans)
           if p == p
@@ -238,7 +241,7 @@ function compute_energy!(B::HDPData, X::Array{Array})
 
 end
 
-function train_gibbs_hdp{T}(X::Vector{Vector{T}}, G0::ConjugatePostDistribution, Z::Array{Array}, G::Array{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
+function train_gibbs_hdp{T}(X::Vector{Vector{T}}, G0::ConjugatePostDistribution, Z::Vector{Vector{Int}}, G::Vector{ConjugatePostDistribution}, hyper::HDPHyperparam, K::Int;
                            α = 1.0, γ = 1.0, burnin = 0, thinout = 1, maxiter = 100)
 
   N0 = length(X)
@@ -283,9 +286,8 @@ function train_gibbs_hdp{T}(X::Vector{Vector{T}}, G0::ConjugatePostDistribution,
   for iter in 1:burnin
     gibbs_beta_hdp!(B)
 
-    # TODO: this should be type stable not like this!!!
     totalnt = sum(B.classnt, 1)
-    B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, sum(B.totalnt), B.K, maxiter=10)
+    B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, sum(B.totalnt), B.K, maxiter = 10)
     B.α = random_concentration_parameter(B.α, hyper.α_a, hyper.α_b, B.Nj, B.totalnt)
   end
 
@@ -298,20 +300,22 @@ function train_gibbs_hdp{T}(X::Vector{Vector{T}}, G0::ConjugatePostDistribution,
 
     for t in 1:thinout
       gibbs_beta_hdp!(B)
-      # TODO: this should be type stable not like this!!!
+
       totalnt = sum(B.classnt, 1)
-      B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, sum(B.totalnt), B.K, maxiter=10)
+      B.γ = random_concentration_parameter(B.γ, hyper.γ_a, hyper.γ_b, sum(B.totalnt), B.K, maxiter = 10)
       B.α = random_concentration_parameter(B.α, hyper.α_a, hyper.α_b, B.Nj, B.totalnt)
     end
 
+		# compute weights
+		W = map(j -> map(k -> B.C[k, j] + B.β[k] * B.α, 1:B.K), B.N0idx)
 
-    # TODO: compute energy
-    e = 0.0
+    model = HDPData(0.0, deepcopy(B.G), deepcopy(B.Z), deepcopy(W) )
+
+    # update energy
+    compute_energy!(model, X)
 
     # record results
-    push!(results, HDPData(e, deepcopy(B.G), deepcopy(B.Z)) )
-
-    #println("iteration: ", iter, " clusters: ", B.K)
+    push!( results, model )
 
   end
 

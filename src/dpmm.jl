@@ -19,13 +19,13 @@ type DPMData <: AbstractModelData
   α::Float64
 
   # Distributions
-  G::Array{ConjugatePostDistribution}
+  distributions::Array{ConjugatePostDistribution}
 
   # Assignments
-  Z::Array{Int}
+  assignments::Array{Int}
 
   # Weights
-  W::Array{Float64}
+  weights::Array{Float64}
 
 end
 
@@ -197,8 +197,8 @@ function compute_energy!(B::DPMData, X::Array)
     pp = 0.0
     c = 0
 
-    for i = 1:length(B.W)
-      p = exp( logpred( B.G[i], X[:,xi] ) ) * B.W[i]
+    for i = 1:length(B.weights)
+      p = exp( logpred( B.distributions[i], X[:,xi] ) ) * B.weights[i]
 
       # only sum over actual values (excluding nans)
       if p == p

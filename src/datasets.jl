@@ -57,7 +57,7 @@ function generateBarsDataset(img_size::Int, noise_level::Float64, num_per_mixtur
   # Note: strange behavior of cumsum!!!
   cumbar = cumsum(num_per_mixture, 2)
 
-  samples = Array(Array, num_group)
+  samples = Vector{Vector{Int}}(num_group)
 
   for g in 1:num_group
 
@@ -69,7 +69,7 @@ function generateBarsDataset(img_size::Int, noise_level::Float64, num_per_mixtur
       theta = mean(mix_theta[:,k], 2)
 
       # get samples (e.g. words)
-      samples[g] = 1 + sum(repmat(rand(num_data)', numdim, 1) .> repmat(cumsum(theta, 1), 1, num_data), 1)
+      samples[g] = vec( 1 + sum(repmat(rand(num_data)', numdim, 1) .> repmat(cumsum(theta, 1), 1, num_data), 1) )
   end
 
   # return samples and bars

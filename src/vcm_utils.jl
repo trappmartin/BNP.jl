@@ -69,10 +69,12 @@ end
 # supplemental of http://papers.nips.cc/paper/4579-a-nonparametric-variable-clustering-model
 function gibbs_aux_assignment!(B::VCMBuffer; out_dim = -1)
 
+    (D, N) = size(B.Y)
+
     if out_dim != -1
         perm = collect(out_dim)
     else
-        perm = randperm(B.D)
+        perm = randperm(D)
     end
 
     auxDist = Normal(B.μ_x, B.σ_x)
@@ -81,32 +83,39 @@ function gibbs_aux_assignment!(B::VCMBuffer; out_dim = -1)
 
     for d in perm
 
+        #println("out dim", out_dim)
+
         if out_dim == -1
             # get cluster of current item
             cluster = B.cc[d]
 
+            #println("got cluster")
+
             # check if cluster is empty
             if sum(B.cc .== cluster) == 1
+
+                #println("found empty cluster")
 
                 B.K -= 1
                 idx = find(B.cc .> cluster)
                 B.cc[idx] -= 1
 
                 #C = C[:,[1:cluster-1, cluster+1:end]]
-                B.G = B.G[:,[1:cluster-1, cluster+1:end]]
+                B.G = B.G[:,[1:cluster-1; cluster+1:end]]
 
                 r = B.X[cluster,:]
-                B.X = B.X[[1:cluster-1, cluster+1:end],:]
+                B.X = B.X[[1:cluster-1; cluster+1:end],:]
 
+                #println("removed empty cluster")
 
             end
         else
-            B.G = cat(1, G, zeros(1, K))
-            B.cc = cat(1, cc, 0)
+            B.G = cat(1, B.G, zeros(1, B.K))
+            B.cc = cat(1, B.cc, 0)
             #C = cat(1, C, zeros(Int, 1, K))
         end
 
-        #X2Cache = sum(B.X.^2, 2)
+        #println("generate cache...")
 
         Xm = reduce(hcat, map(m -> rand(auxDist, B.N), 1:B.m_aux))'
         X2m = sum(Xm.^2, 2)
@@ -114,10 +123,12 @@ function gibbs_aux_assignment!(B::VCMBuffer; out_dim = -1)
         XX = cat(1, B.X, Xm)
         XX2Cache = cat(1, X2Cache, X2m)
 
+        #println("prepare p..")
+
         # compute P(c_i = c | c_-i, y_i, ϕ_1, ..., ϕ_h ) according to Neal (2000)
         p = ones(B.K+B.m_aux) .* -Inf
-        p[1:B.K] = log( map( c -> sum(B.cc .== c) / (B.α + B.D - 1), 1:B.K ) )
-        p[B.K + 1:B.K + B.m_aux] = log( B.α / B.m_aux ) - log( B.α + B.D - 1 )
+        p[1:B.K] = log( map( c -> sum(B.cc .== c) / (B.α + D - 1), 1:B.K ) )
+        p[B.K + 1:B.K + B.m_aux] = log( B.α / B.m_aux ) - log( B.α + D - 1 )
 
         Gsamps = zeros(1, B.K + B.m_aux)
 
@@ -133,18 +144,24 @@ function gibbs_aux_assignment!(B::VCMBuffer; out_dim = -1)
             Gsamps[k] = μ + λ^(-.5) * randn()
         end
 
+        #println("finished comp. of p...")
+
         # common normalization
         p = exp( p - maximum(p) )
 
         kk = rand_indices(p)
 
+        #println("got new k")
+
         g = Gsamps[kk]
 
-        if kk > K
+        #println("found g")
+
+        if kk > B.K
             # open new cluster
             B.X = cat(1, B.X, XX[kk,:])
             #C = cat(2, C, zeros(Int, D, 1))
-            B.G = cat(2, B.G, zeros(B.D, 1))
+            B.G = cat(2, B.G, zeros(D, 1))
 
             B.K += 1
             kk = B.K
@@ -155,7 +172,7 @@ function gibbs_aux_assignment!(B::VCMBuffer; out_dim = -1)
 
         if out_dim == -1
             B.G[d, kk] = g
-            cc[d] = kk
+            B.cc[d] = kk
             #C[d,:] = zeros(1, K)
             #C[d,kk] = 1
         else
@@ -165,10 +182,12 @@ function gibbs_aux_assignment!(B::VCMBuffer; out_dim = -1)
             #C[out_dim,kk] = 1
         end
 
+        #println("loop end")
+
     end
 
-    B.C = spzeros(D, K)
-    B.C[cc] = 1
+    B.C = spzeros(D, B.K)
+    B.C[B.cc] = 1
 
     B
 end

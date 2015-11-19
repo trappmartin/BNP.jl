@@ -45,7 +45,7 @@ module BNP
       α::Float64
       γ::Float64
 
-      HDP(H::ConjugatePostDistribution; α = 1.0, γ = 1.0) = new(H, α, γ)
+      HDP(H::ConjugatePostDistribution; α = 0.1, γ = 5.0) = new(H, α, γ)
     end
 
     abstract SamplingType

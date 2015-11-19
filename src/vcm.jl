@@ -126,7 +126,9 @@ function init_incremental_vcm(Y::Array{Float64}, hyper::VCMHyperparam; α = 1.0)
   Yd = B.Y[1,:]
 
   sample_latent_factors!(Yd, B)
+  B.Y = Yd
   gibbs_aux_assignment!(B)
+
 
   B.α = random_concentration_parameter(B.α, hyper.γ_alpha_a, hyper.γ_alpha_b, B.N, B.K)
   B.σ_noise = random_sigma_noise(B, hyper.γ_noise_a, hyper.γ_noise_b)
@@ -135,9 +137,10 @@ function init_incremental_vcm(Y::Array{Float64}, hyper::VCMHyperparam; α = 1.0)
   # loop over D-1 dimensions
   for d = 2:B.D
 
-      Yd = cat(1, Yd, B.Y[d,:])
+      Yd = cat(1, Yd, Y[d,:])
 
       # sample unobserved data from model
+      B.Y = Yd
       gibbs_aux_assignment!(B, out_dim = d)
       # not sure why this is required...
 
@@ -150,6 +153,8 @@ function init_incremental_vcm(Y::Array{Float64}, hyper::VCMHyperparam; α = 1.0)
       B.σ_g = random_sigma_g(B, hyper.γ_g_a, hyper.γ_g_b)
 
   end
+
+  B.Y = Y
 
   return B
 
@@ -187,7 +192,7 @@ function train_gibbs_vcm(B::VCMBuffer, hyper::VCMHyperparam; α = 1.0, burnin = 
 
     # compute energy
     E = B.Y - ( (B.G .* B.C) * B.X )
-    llh = -D*N*(log(B.σ_noise) + 0.5*log(2*pi)) - 0.5*sum(E.^2) / (B.σ_noise^2)
+    llh = -B.D*B.N*(log(B.σ_noise) + 0.5*log(2*pi)) - 0.5*sum(E.^2) / (B.σ_noise^2)
 
     # simplified normal pdf
     prior_g = -0.5 * (1.0/B.σ_g.^2) * sum( (B.G-repmat((B.μ_g * ones(B.D, 1)), 1, B.K)).^2 )
