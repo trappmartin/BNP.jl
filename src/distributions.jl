@@ -69,3 +69,22 @@ type MultinomialDirichlet <: ConjugatePostDistribution
     end
 
 end
+
+# Binomial with Beta Prior
+type BinomialBeta <: ConjugatePostDistribution
+
+    D::Int
+
+	# sufficient statistics
+	n::Int
+	counts::Array{Int}
+
+	# beta distribution parameters
+	α::Float64
+	β::Float64
+
+	function BinomialBeta(D::Int;α = 1.0, β = 1.0)
+		new(D, 0, zeros(D), α, β)
+	end
+
+end

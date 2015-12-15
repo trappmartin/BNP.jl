@@ -123,7 +123,7 @@ module BNP
       VCM,
       HDP,
 
-      # Sampler
+      # Inference Algorithms
       Gibbs,
 
       # Initialisations
@@ -145,6 +145,7 @@ module BNP
       ConjugatePostDistribution,
       GaussianWishart,
       MultinomialDirichlet,
+	  BinomialBeta,
 
       # training method
       train,

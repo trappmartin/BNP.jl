@@ -4,6 +4,10 @@ using ArrayViews
 # add samples to distribution
 ###
 
+function add_data(d::ConjugatePostDistribution, X)
+   add_data!(deepcopy(d), X)
+end
+
 function add_data!(d::GaussianWishart, X)
 
     n = d.n
@@ -30,10 +34,6 @@ function add_data!(d::GaussianWishart, X)
     d
 end
 
-function add_data(d::GaussianWishart, X)
-   add_data!(deepcopy(d), X)
-end
-
 function add_data!(d::MultinomialDirichlet, X)
 
     # process samples
@@ -57,8 +57,18 @@ function add_data!(d::MultinomialDirichlet, X)
     d
 end
 
-function add_data(d::MultinomialDirichlet, X)
-   add_data!(deepcopy(d), X)
+function add_data!(d::BinomialBeta, X)
+
+	(D, N) = size(X)
+
+	if D != d.D
+		 throw(ArgumentError("Dimensions doesn't match! D (", D ,") != Beta-Binomial D (", d.D ,")"))
+	end
+
+	d.n += N
+   d.counts += sum(X, 2)
+
+	d
 end
 
 ###
@@ -86,10 +96,6 @@ function remove_data!(d::GaussianWishart, X)
     d
 end
 
-function remove_data(d::GaussianWishart, X)
-    remove_data!(deepcopy(d), X)
-end
-
 function remove_data!(d::MultinomialDirichlet, X)
 
     # process samples
@@ -113,18 +119,28 @@ function remove_data!(d::MultinomialDirichlet, X)
     d
 end
 
-function remove_data(d::MultinomialDirichlet, X)
+function remove_data!(d::BinomialBeta, X)
+
+	(D, N) = size(X)
+
+	if D != d.D
+		 throw(ArgumentError("Dimensions doesn't match! D (", D ,") != Beta-Binomial D (", d.D ,")"))
+	end
+
+	d.n -= N
+   d.counts -= sum(X, 2)
+
+	d
+end
+
+function remove_data(d::ConjugatePostDistribution, X)
     remove_data!(deepcopy(d), X)
 end
 
 ###
 # Check if distribution is empty (contains no samples)
 ###
-function isdistempty(d::GaussianWishart)
-    return d.n <= 0
-end
-
-function isdistempty(d::MultinomialDirichlet)
+function isdistempty(d::ConjugatePostDistribution)
     return d.n <= 0
 end
 
@@ -172,4 +188,18 @@ function logpred(d::MultinomialDirichlet, x)
     l3 = sum( lgamma( d.alpha0 / d.D + d.counts + xx ) - lgamma( d.alpha0/d.D + d.counts ) )
 
     return l1 + l2 + l3
+end
+
+function logpred(d::BinomialBeta, x)
+
+   (D, N) = size(x)
+
+   n = N + d.n
+   k = d.counts + sum(x, 2)
+
+   l1 = lgamma(n + 1) - lgamma(k + 1) - lgamma(n - k + 1)
+   l2 = lbeta(d.α + k, d.β + n - k) - lbeta(d.α, d.β)
+
+   return l1 + l2
+
 end
