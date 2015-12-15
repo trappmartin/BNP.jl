@@ -13,6 +13,8 @@ The *BNP* package integrates a wide range of state-of-the-art Bayesian nonparame
    :maxdepth: 2
 
    starting.rst
+   initialisation.rst
+	distributions.rst
 
 
 .. Indices and tables
