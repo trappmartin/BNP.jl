@@ -18,7 +18,7 @@ In this example we start by drawing 100 observations from two bivariate Normal d
 Now we can initialize the package and construct a Gaussian data distribution using a Normal Inverse Wishart prior.
 
 .. code-block:: julia
-	
+
 	julia> using BNP
 	julia> μ0 = vec( mean(X, 2) )
 	julia> κ0 = 1.0
@@ -31,5 +31,5 @@ After constructing G0 we can easily apply a Dirichlet Process Mixture Model usin
 .. code-block:: julia
 
     julia> models = train(DPM(G0), Gibbs(), KMeansInitialisation(), X)
-	
+
 Please note that this example can also be found in the demos folder, allowing interactive exploration of the model.

@@ -5,7 +5,7 @@ The *BNP* package integrates a wide range of state-of-the-art Bayesian nonparame
 
 * Dirichlet Process Mixture Models
 * Hierarchical Dirichlet Process Mixture Models
-* Factor analysis modles (e.g. Variable Clustering Model)
+* Factor analysis Models (e.g. Variable Clustering Model)
 
 **Contents:**
 
