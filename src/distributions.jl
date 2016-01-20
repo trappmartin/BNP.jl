@@ -41,6 +41,32 @@ type GaussianWishart <: ConjugatePostDistribution
 
 end
 
+Base.show(io::IO, d::GaussianWishart) =
+    show_multline(io, d, [(:dim, d.D), (:μ0, d.mu0), (:Σ0, d.Sigma0), (:κ0, d.kappa0), (:ν0, d.nu0)])
+
+# Normal with Gamma
+type NormalGamma <: ConjugatePostDistribution
+
+	# sufficient statistics
+	n::Int
+	sums::Float64
+    ssums::Float64
+
+	# model parameters
+	μ0::Float64
+	λ0::Float64
+	α0::Float64
+	β0::Float64
+
+	function NormalGamma(;μ = 0.0, λ = 1.0, α = 1.0, β = 1.0)
+		new(0, 0.0, 0.0, μ, λ, α, β)
+	end
+
+end
+
+Base.show(io::IO, d::NormalGamma) =
+    show_multline(io, d, [(:μ0, d.μ0), (:λ0, d.λ0), (:α0, d.α0), (:β0, d.β0)])
+
 # Multinomial with Dirichlet Prior
 type MultinomialDirichlet <: ConjugatePostDistribution
 
@@ -52,20 +78,24 @@ type MultinomialDirichlet <: ConjugatePostDistribution
 
     # base model parameters
     alpha0::Float64
-    #p0::Vector{Float64}
+
+	# cache
+	dirty::Bool
+	Z2::Float64
+	Z3::Vector{Float64}
 
     function MultinomialDirichlet(D::Int, alpha::Float64)
-        new(D, 0, sparsevec(zeros(D)), alpha)
+        new(D, 0, sparsevec(zeros(D)), alpha, true, 0.0, Vector{Float64}(0))
     end
 
     function MultinomialDirichlet(N::Int, counts::Vector{Int},
                             D::Int, alpha::Float64)
-        new(D, N, sparsevec(counts), alpha)
+        new(D, N, sparsevec(counts), alpha, true, 0.0, Vector{Float64}(0))
     end
 
     function MultinomialDirichlet(N::Int, counts::SparseMatrixCSC{Int,Int},
                             D::Int, alpha::Float64)
-        new(D, N, counts, alpha)
+        new(D, N, counts, alpha, true, 0.0, Vector{Float64}(0))
     end
 
 end

@@ -10,10 +10,6 @@ end
 
 function add_data!(d::GaussianWishart, X)
 
-    n = d.n
-    sums = d.sums
-    ssums = d.ssums
-
     # process samples
     if ndims(X) == 1
         N = 1
@@ -23,7 +19,6 @@ function add_data!(d::GaussianWishart, X)
     end
 
     if D != d.D
-        println("D: ", D, " != Dist D: ", d.D)
         throw(ArgumentError("Dimensions of X and distribution are not equal!"))
     end
 
@@ -32,6 +27,28 @@ function add_data!(d::GaussianWishart, X)
     d.ssums += X * X'
 
     d
+end
+
+function add_data!(d::NormalGamma, X)
+
+	# process samples
+	if ndims(X) == 1
+		 N = 1
+		 (D,) = size(X)
+	else
+		 (D, N) = size(X)
+	end
+
+	if D != 1
+		 throw(ArgumentError("Data is not univariate!"))
+	end
+
+	d.n += N
+	d.sums += sum(X)
+	d.ssums += sum(X.^2)
+
+	d
+
 end
 
 function add_data!(d::MultinomialDirichlet, X)
@@ -53,6 +70,8 @@ function add_data!(d::MultinomialDirichlet, X)
     for x in X
         d.counts[x] += 1
     end
+
+    d.dirty = true
 
     d
 end
@@ -96,6 +115,27 @@ function remove_data!(d::GaussianWishart, X)
     d
 end
 
+function remove_data!(d::NormalGamma, X)
+
+    # process samples
+    if ndims(X) == 1
+        N = 1
+        (D,) = size(X)
+    else
+        (D, N) = size(X)
+    end
+
+    if D != 1
+        throw(ArgumentError("Data is not univariate!"))
+    end
+
+    d.n -= N
+    d.sums -= sum(X)
+    d.ssums -= sum(X.^2)
+
+    d
+end
+
 function remove_data!(d::MultinomialDirichlet, X)
 
     # process samples
@@ -115,6 +155,8 @@ function remove_data!(d::MultinomialDirichlet, X)
     for x in X
         d.counts[x] -= 1
     end
+
+    d.dirty = true
 
     d
 end
@@ -148,6 +190,7 @@ end
 # compute posterior predictive (unnormalized)
 ###
 
+"Log PDF for GaussianWishart."
 function logpred(d::GaussianWishart, x)
 
     # statistics
@@ -165,15 +208,85 @@ function logpred(d::GaussianWishart, x)
     # posterior predictive of Normal Inverse Wishart is student-t Distribution, see:
     # K. Murphy, Conjugate Bayesian analysis of the Gaussian distribution. Eq. 258
 
-    d = Distributions.MvTDist(nu - d.D + 1, mu, Sigma * ((kappa + 1) / (kappa * (nu - d.D + 1))))
-    return(Distributions.logpdf(d, x))
+	 C = Sigma * ((kappa + 1) / (kappa * (nu - d.D + 1)))
+
+	 if !isposdef(C)
+		 println("C is not positive definite! ", C)
+	 end
+
+    d = Distributions.MvTDist(nu - d.D + 1, mu, C)
+    return Distributions.logpdf(d, x)
 
 end
 
+"Log PDF of Generalized student-t Distribution."
+function tlogpdf(x, df, mean, sigma)
+
+   function tdist_consts(df, sigma)
+       hdf = 0.5 * df
+       shdfhdim = hdf + 0.5
+       v = lgamma(hdf + 1/2) - lgamma(hdf) - 0.5*log(df) - 0.5*log(pi) - log(sigma)
+       return (shdfhdim, v)
+   end
+
+    shdfhdim, v = tdist_consts(df, sigma)
+
+    xx = x .- mean
+    xx = (xx ./ sqrt(sigma)).^2
+
+    p = 1/df * xx
+
+    p = v - log((1 + p).^((df+1) / 2))
+
+    if p != p
+      println(p)
+    end
+
+    return p
+    #return v - shdfhdim * log1p(xx / df)
+
+end
+
+"Log PDF for NormalGamma."
+function logpred(d::NormalGamma, x)
+
+   if d.n == 0
+      # posterior predictive of Normal Gamma is student-t Distribution
+      df = 2 * d.α0
+      mean = d.μ0
+      sigma = ( d.β0 * (d.λ0 + 1) ) / (d.λ0 * d.α0)
+
+      return tlogpdf(x, df, mean, sigma)
+   end
+
+
+    # statistics
+    sample_mu = d.sums / d.n
+
+    # make sure values are not NaN
+    sample_mu = sample_mu != sample_mu ? 0 : sample_mu
+
+    # compute posterior parameters
+    μ = (d.λ0 * d.μ0 + d.sums) / (d.λ0 + d.n)
+    λ = d.λ0 + d.n
+    α = d.α0 + (d.n / 2)
+    s = (d.ssums / d.n) - (sample_mu * sample_mu)
+    β = d.β0 + 1/2 * (d.n * s + (d.λ0 * d.n * (sample_mu - d.μ0)^2 ) / (d.λ0 + d.n) )
+
+    # posterior predictive of Normal Gamma is student-t Distribution
+    df = 2 * α
+    mean = μ
+    sigma = ( β * (λ + 1) ) / (λ * α)
+
+    return tlogpdf(x, df, mean, sigma)
+end
+
+"Log PMF for MultinomialDirichlet."
 function logpred(d::MultinomialDirichlet, x)
 
     N = length(x)
 
+	 # TODO: This is bad and slow code, improve!!!
     # construct sparse vector
     xx = spzeros(d.D, N)
     for i in 1:N
@@ -183,13 +296,21 @@ function logpred(d::MultinomialDirichlet, x)
     m = sum(xx)
     mi = nnz(xx)
 
-    l1 = lgamma(m + 1) - sum(lgamma(mi + 1))
-    l2 = lgamma(d.alpha0 + d.n) - lgamma(d.alpha0 + d.n + m)
-    l3 = sum( lgamma( d.alpha0 / d.D + d.counts + xx ) - lgamma( d.alpha0/d.D + d.counts ) )
+	 if d.dirty
+		 d.z2 = lgamma(d.alpha0 + d.n)
+		 d.z3 = lgamma( d.alpha0/d.D + d.counts )
+
+		 d.dirty = false
+	 end
+
+	l1 = lgamma(m + 1) - sum(lgamma(mi + 1))
+	l2 = d.Z2 - lgamma(d.alpha0 + d.n + m)
+	l3 = sum( lgamma( d.alpha0 / d.D + d.counts + xx ) - d.Z3 )
 
     return l1 + l2 + l3
 end
 
+"Log PMF for BinomialBeta."
 function logpred(d::BinomialBeta, x)
 
    (D, N) = size(x)

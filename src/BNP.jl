@@ -11,6 +11,7 @@ module BNP
     include("distributions.jl")
     include("distfunctions.jl")
 
+	include("show.jl")
     include("utils.jl")
     include("common.jl")
 
@@ -144,6 +145,7 @@ module BNP
       # Distributions
       ConjugatePostDistribution,
       GaussianWishart,
+	  NormalGamma,
       MultinomialDirichlet,
 	  BinomialBeta,
 
