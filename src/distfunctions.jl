@@ -193,6 +193,16 @@ end
 "Log PDF for GaussianWishart."
 function logpred(d::GaussianWishart, x)
 
+	if d.n == 0
+		# posterior predictive of Normal Inverse Wishart is student-t Distribution
+
+		C = d.Sigma0 * ((d.kappa0 + 1) / (d.kappa0 * (d.nu0 - d.D + 1)))
+
+		d = Distributions.MvTDist(d.nu0 - d.D + 1, d.mu0, C)
+	    return Distributions.logpdf(d, x)
+
+	end
+
     # statistics
     sample_mu = d.sums / d.n
 
