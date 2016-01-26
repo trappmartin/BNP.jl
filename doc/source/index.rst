@@ -14,7 +14,8 @@ The *BNP* package integrates a wide range of state-of-the-art Bayesian nonparame
 
    starting.rst
    initialisation.rst
-	distributions.rst
+   models.rest
+   distributions.rst
 
 
 .. Indices and tables

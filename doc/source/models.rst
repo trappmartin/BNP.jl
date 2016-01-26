@@ -1,35 +1,81 @@
-Getting Started
+.. _models
+
+Models
 ===============
 
-Installation
------------
-The *BNP* package is currently not available through the Julia package system but can easily installed by running ``Pkg.clone("https://github.com/trappmartin/BNP.jl")``.
-
-Clustering data using Dirichlet Process Mixture Model
+Common Interface
 -----------
 
-In this example we start by drawing 100 observations from two bivariate Normal distributions.
+Each model can be trained using the common interface train:
 
 .. code-block:: julia
 
-    julia> X = cat(2, rand(2, 50), rand(2, 50) + 10)
-    julia> Y = cat(2, zeros(50), ones(50))
+	julia> models = train(DPM(G0), Gibbs(), KMeansInitialisation(), X)
 
-Now we can initialize the package and construct a Gaussian data distribution using a Normal Inverse Wishart prior.
+Note that the train function allways returns a list of model objects. Those can objects can be used for further analysis. The fields of the model objects are described below.
 
-.. code-block:: julia
 
-	julia> using BNP
-	julia> μ0 = vec( mean(X, 2) )
-	julia> κ0 = 1.0
-	julia> ν0 = 4.0
-	julia> Ψ = eye(2) * 10
-	julia> G0 = GaussianWishart(μ0, κ0, ν0, Ψ)
+Dirichlet Process Mixture Model
+-----------
+The Dirichlet Process Mixture Model (DP-MM) can be used to infer the number of clusters and their parameters. 
 
-After constructing G0 we can easily apply a Dirichlet Process Mixture Model using collapsed Gibbs sampling.
+Trainin a DP-MM is done using
 
 .. code-block:: julia
 
-    julia> models = train(DPM(G0), Gibbs(), KMeansInitialisation(), X)
+	julia> models = train(DPM(G0), Gibbs(), KMeansInitialisation(), X)
+	
+where G0 is the base distribution with conjugate prior.
 
-Please note that this example can also be found in the demos folder, allowing interactive exploration of the model.
+The model object contains the following information:
+
+.. code-block:: julia
+
+	julia> # Energy
+	julia> energy::Float64
+	
+	julia> # Dirichlet concentration parameter
+	julia> α::Float64
+	
+	julia> # Distributions
+	julia> distributions::Array{ConjugatePostDistribution}
+	
+	julia> # Data Point Assignments to Clusters
+	julia> assignments::Array{Int}
+	
+	julia> # Weights
+	julia> weights::Array{Float64}
+
+
+Hierarcical Dirichlet Process Model
+-----------
+
+The Hierarcical Dirichlet Process Model (HDP) can be used to infer the number of topics (shared distributions) and their parameters. 
+
+Trainin a HDP is done using
+
+.. code-block:: julia
+
+	julia> models = train(HDP(G0), Gibbs(), RandomInitialisation(), X)
+	
+where G0 is the base distribution with conjugate prior.
+
+The model object contains the following information:
+
+.. code-block:: julia
+
+	julia> # Energy
+	julia> energy::Float64
+	
+	julia> # Topics
+	julia> distributions::Vector{ConjugatePostDistribution}
+	
+	julia> # Word Assignments per Document to Clusters
+	julia> assignments::Vector{Vector{Int}}
+	
+	julia> # Topic Weights per Document
+	julia> weights::Vector{Vector{Float64}}
+	
+Variable Cluster Model
+-----------
+
