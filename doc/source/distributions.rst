@@ -1,12 +1,10 @@
-.. _distributions
-
 Distributions
 ===============
 
 The following distributions are currently supported. We will add additional support for the Distributions package in near future.
 
 Common Interface
-~~~~~~~~~~~~~~~~~~~~~~
+-----------
 
 A common interface to access the sufficient statistics and the log likelihood is provided for all distributions.
 
@@ -25,7 +23,7 @@ A common interface to access the sufficient statistics and the log likelihood is
     julia> logpred(dist, X) # log likelihood datum under dist
 
 Beta-Binomial
-~~~~~~~~~~~~~~~~~~~~~~
+-----------
 
 The Binomial distribution with Beta prior of dimensionality D can be created using:
 
@@ -36,7 +34,7 @@ The Binomial distribution with Beta prior of dimensionality D can be created usi
 
 
 Dirichlet-Multinomial
-~~~~~~~~~~~~~~~~~~~~~~
+-----------
 
 The Multinomial distribution with Dirichlet prior of dimensionality D can be created using:
 
@@ -46,7 +44,7 @@ The Multinomial distribution with Dirichlet prior of dimensionality D can be cre
 
 
 Wishart-Gaussian
-~~~~~~~~~~~~~~~~~~~~~~
+-----------
 
 The Gaussian distribution with Wishart prior of dimensionality D can be created using:
 
