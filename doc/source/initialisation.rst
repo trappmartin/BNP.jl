@@ -32,5 +32,5 @@ The K-Means Initialization assigns the data using k-Means clustering to a predef
 
 .. code-block:: julia
 
-    julia> init = KMeansInitialisation() #  Random Initialisation with k = 2
-    julia> init = KMeansInitialisation(k = 5) #  Random Initialisation with k = 5
+    julia> init = KMeansInitialisation() #  K-Means Initialisation with k = 2
+    julia> init = KMeansInitialisation(k = 5) #  K-Means Initialisation with k = 5
