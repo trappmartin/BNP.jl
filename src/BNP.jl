@@ -11,7 +11,7 @@ module BNP
     include("distributions.jl")
     include("distfunctions.jl")
 
-	include("show.jl")
+		include("show.jl")
     include("utils.jl")
     include("common.jl")
 
@@ -24,6 +24,11 @@ module BNP
 
     include("hdp_utils.jl")
     include("hdp.jl") # Hierarchical Dirichlet Proces
+
+    # analysis functions
+    include("psm.jl")
+    include("vipointestimate.jl")
+
 
     # define models
     abstract ModelType
@@ -161,6 +166,10 @@ module BNP
       rand_indices,
 
       # dataset generation
-      generateBarsDataset
+      generateBarsDataset,
+
+	  # analysis
+	  compute_psm,
+      point_estimate
 
 end

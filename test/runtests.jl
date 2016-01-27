@@ -6,3 +6,5 @@ using Base.Test
 #include("hdp_test.jl")
 #include("vcm_tests.jl")
 include("distributionsTests.jl")
+include("psmtest.jl")
+include("vipointestimatetest.jl")
