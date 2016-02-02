@@ -198,8 +198,8 @@ function logpred(d::GaussianWishart, x)
 
 		C = d.Sigma0 * ((d.kappa0 + 1) / (d.kappa0 * (d.nu0 - d.D + 1)))
 
-		d = Distributions.MvTDist(d.nu0 - d.D + 1, d.mu0, C)
-	    return Distributions.logpdf(d, x)
+		dist = Distributions.MvTDist(d.nu0 - d.D + 1, d.mu0, C)
+	   return Distributions.logpdf(dist, x) - Distributions.logpdf(dist, d.mu0)
 
 	end
 
@@ -224,8 +224,8 @@ function logpred(d::GaussianWishart, x)
 		 println("C is not positive definite! ", C)
 	 end
 
-    d = Distributions.MvTDist(nu - d.D + 1, mu, C)
-    return Distributions.logpdf(d, x)
+    dist = Distributions.MvTDist(nu - d.D + 1, mu, C)
+    return Distributions.logpdf(dist, x) - Distributions.logpdf(dist, mu)
 
 end
 
@@ -266,7 +266,7 @@ function logpred(d::NormalGamma, x)
       mean = d.μ0
       sigma = ( d.β0 * (d.λ0 + 1) ) / (d.λ0 * d.α0)
 
-      return tlogpdf(x, df, mean, sigma)
+      return tlogpdf(x, df, mean, sigma) - tlogpdf(mean, df, mean, sigma)
    end
 
 
@@ -288,7 +288,7 @@ function logpred(d::NormalGamma, x)
     mean = μ
     sigma = ( β * (λ + 1) ) / (λ * α)
 
-    return tlogpdf(x, df, mean, sigma)
+    return tlogpdf(x, df, mean, sigma) - tlogpdf(mean, df, mean, sigma)
 end
 
 "Log PMF for MultinomialDirichlet."
