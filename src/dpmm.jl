@@ -41,7 +41,7 @@ type DPMBuffer <: AbstractModelBuffer
   N::Int
 
   # samples
-  X::Array{Float64}
+  X::AbstractArray
 
   # assignments
   Z::Array{Int}
@@ -62,12 +62,23 @@ type DPMBuffer <: AbstractModelBuffer
   alpha::Float64
 end
 
-"DPM initialization using K-Means."
-function init_kmeans_dpmm(X::Array{Float64}, G0::ConjugatePostDistribution; k = 2, maxiterations = 10)
+@doc doc"""
+Initialization of dirichlet process mixture model using K-Means.
+""" ->
+function init_kmeans_dpmm{T <: Real}(X::AbstractArray{T}, G0::ConjugatePostDistribution; k = 2, maxiterations = 10)
 
   (D, N) = size(X)
 
-  R = Clustering.kmeans(X, k; maxiter = maxiterations)
+	if issparse(X)
+    if !(T == Float64)
+		  R = Clustering.kmeans(float(full(X)), k; maxiter = maxiterations)
+    else
+      R = Clustering.kmeans(full(X), k; maxiter = maxiterations)
+    end
+	else
+		R = Clustering.kmeans(X, k; maxiter = maxiterations)
+	end
+
   Z = assignments(R)
 
   G = Array{ConjugatePostDistribution}(N)
@@ -85,12 +96,36 @@ function init_kmeans_dpmm(X::Array{Float64}, G0::ConjugatePostDistribution; k = 
   return (Z, G)
 end
 
-"DPM initialization using random assignments."
-function init_random_dpmm(X::Array{Float64}, G0::ConjugatePostDistribution; k = 2)
+@doc doc"""
+Initialization of dirichlet process mixture model using random assignments.
+""" ->
+function init_random_dpmm(X::AbstractArray, G0::ConjugatePostDistribution; k = 2)
 
   (D, N) = size(X)
 
   Z = 1 + (randperm(N) % k)
+
+  G = Array{ConjugatePostDistribution}(N)
+
+  for c in 1:N
+    idx = find(Z .== c)
+
+    if length(idx) > 0
+      G[c] = add_data(G0, X[:,idx])
+    else
+      G[c] = deepcopy(G0)
+    end
+  end
+
+  return (Z, G)
+end
+
+@doc doc"""
+Initialization of dirichlet process mixture model using precomputed assignments.
+""" ->
+function init_precomputed_dpmm(X::AbstractArray, G0::ConjugatePostDistribution, Z::Array{Int})
+
+  (D, N) = size(X)
 
   G = Array{ConjugatePostDistribution}(N)
 
@@ -118,7 +153,7 @@ function cgibbs_crp_dpmm!(B::DPMBuffer)
 
   for index in B.ids
 
-    x = view(B.X, : ,index)
+    x = B.X[:, index]
 
     # get assignment
     z = B.Z[index]
@@ -148,7 +183,7 @@ function cgibbs_crp_dpmm!(B::DPMBuffer)
     for i in 1:length(B.C)
       if B.C[i] >= 1
 
-        llh = logpred( B.G[i], x )
+        llh = logpred( B.G[i], x )[1]
         crp = log( B.C[i] / (B.N + B.alpha - 1) )
 
         p[j] = llh + crp
@@ -161,7 +196,7 @@ function cgibbs_crp_dpmm!(B::DPMBuffer)
 
     k2id[B.K + 1] = k2id[B.K] + 1
 
-    p[B.K + 1] = logpred(B.G0, x) + log( B.alpha / (B.N + B.alpha - 1) )
+    p[B.K + 1] = logpred(B.G0, x)[1] + log( B.alpha / (B.N + B.alpha - 1) )
     p = exp(p - maximum(p))
 
     k = k2id[rand_indices(p)]
@@ -188,7 +223,7 @@ function cgibbs_crp_dpmm!(B::DPMBuffer)
 end
 
 "Compute Energy of model for given data"
-function compute_energy!(B::DPMData, X::Array)
+function compute_energy!(B::DPMData, X::AbstractArray)
 
   E = 0.00001
 
@@ -198,7 +233,7 @@ function compute_energy!(B::DPMData, X::Array)
     c = 0
 
     for i = 1:length(B.weights)
-      p = exp( logpred( B.distributions[i], X[:,xi] ) ) * B.weights[i]
+      p = exp( logpred( B.distributions[i], X[:,xi] )[1] ) * B.weights[i]
 
       # only sum over actual values (excluding nans)
       if p == p
@@ -216,7 +251,7 @@ function compute_energy!(B::DPMData, X::Array)
 end
 
 "Training Dirichlet Process Mixture Model using collabsed Gibbs sampling"
-function train_cgibbs_dpmm(X::Array, G0::ConjugatePostDistribution, Z::Array{Int}, G::Array{ConjugatePostDistribution}, hyper::DPMHyperparam; alpha = 1.0, burnin = 0, thinout = 1, maxiter = 100)
+function train_cgibbs_dpmm(X::AbstractArray, G0::ConjugatePostDistribution, Z::Array{Int}, G::Array{ConjugatePostDistribution}, hyper::DPMHyperparam; alpha = 1.0, burnin = 0, thinout = 1, maxiter = 100)
 
   (D, N) = size(X)
 
@@ -257,6 +292,8 @@ function train_cgibbs_dpmm(X::Array, G0::ConjugatePostDistribution, Z::Array{Int
   # Gibbs sweeps
 
   for iter in 1:maxiter
+
+    #println("   # [DPMM]: Iteration $(iter) of $(maxiter)")
 
     for t in 1:thinout
       # run one gibbs iteration using chinese restaurant process

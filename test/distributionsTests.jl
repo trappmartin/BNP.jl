@@ -1,5 +1,49 @@
 println("# Test Distributions")
 
+# Multinomial-Dirichlet
+println(" * Multinomial-Dirichlet")
+
+d = MultinomialDirichlet(5, 1.0)
+
+println(" * - add data words")
+
+add_data!(d, [2, 3, 3])
+
+@test d.n == 3
+@test d.counts[2] == 1
+@test d.counts[3] == 2
+
+println(" * - add data sparse vector")
+
+add_data!(d, sparse([1,0,1,0,0]))
+
+@test d.n == 4
+@test d.counts[1] == 1
+@test d.counts[3] == 3
+
+println(" * - remove data words")
+
+remove_data!(d, [3])
+
+@test d.n == 3
+@test d.counts[3] == 2
+
+println(" * - remove data sparse vector")
+
+remove_data!(d, sparse([1,0,0,0,0]))
+
+@test d.n == 2
+@test d.counts[1] == 0
+
+println(" * - log pdf")
+@test logpred(d, [3])[1] == logpred(d, sparse([0,0,1,0,0]))[1]
+
+x = spzeros(Int, 5, 2)
+x[3,1] = 1
+x[2,2] = 1
+
+@test_throws ErrorException logpred(d, x)
+
 # Beta-Binomial
 println(" * Beta-Binomial")
 
@@ -47,7 +91,6 @@ sigma = 10
 
 d = Distributions.TDist(df)
 #@test_approx_eq_eps BNP.tlogpdf(1, df, mean, sigma) Distributions.logpdf(d, 1 / sigma) - log(sigma) 1e-4
-
 
 # Normal-Gamma
 println(" * Normal-Gamma")

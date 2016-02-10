@@ -82,20 +82,20 @@ type MultinomialDirichlet <: ConjugatePostDistribution
 	# cache
 	dirty::Bool
 	Z2::Float64
-	Z3::Vector{Float64}
+	Z3::Array{Float64}
 
     function MultinomialDirichlet(D::Int, alpha::Float64)
-        new(D, 0, sparsevec(zeros(D)), alpha, true, 0.0, Vector{Float64}(0))
+        new(D, 0, sparsevec(zeros(D)), alpha, true, 0.0, Array{Float64}(0))
     end
 
     function MultinomialDirichlet(N::Int, counts::Vector{Int},
                             D::Int, alpha::Float64)
-        new(D, N, sparsevec(counts), alpha, true, 0.0, Vector{Float64}(0))
+        new(D, N, sparsevec(counts), alpha, true, 0.0, Array{Float64}(0))
     end
 
     function MultinomialDirichlet(N::Int, counts::SparseMatrixCSC{Int,Int},
                             D::Int, alpha::Float64)
-        new(D, N, counts, alpha, true, 0.0, Vector{Float64}(0))
+        new(D, N, counts, alpha, true, 0.0, Array{Float64}(0))
     end
 
 end

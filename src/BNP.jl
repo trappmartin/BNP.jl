@@ -66,6 +66,11 @@ module BNP
 
     abstract InitialisationType
 
+    type PrecomputedInitialisation <: InitialisationType
+      Z::Array{Int}
+      PrecomputedInitialisation(Z::Array{Int}) = new(Z)
+    end
+
     type RandomInitialisation <: InitialisationType
       k::Int
 
@@ -81,7 +86,7 @@ module BNP
     type IncrementalInitialisation <: InitialisationType end
 
     # define helper functions
-    function train(model::DPM, sampler::Gibbs, init::RandomInitialisation, X::Array)
+    function train(model::DPM, sampler::Gibbs, init::RandomInitialisation, X::AbstractArray)
 
       # init
       (Z, G) = init_random_dpmm(X, model.H, k = init.k)
@@ -91,7 +96,17 @@ module BNP
 
     end
 
-    function train{T}(model::DPM, sampler::Gibbs, init::KMeansInitialisation, X::Array{T})
+    function train(model::DPM, sampler::Gibbs, init::PrecomputedInitialisation, X::AbstractArray)
+
+      # init
+      (Z, G) = init_precomputed_dpmm(X, model.H, init.Z)
+
+      # inference
+      return train_cgibbs_dpmm(X, model.H, Z, G, DPMHyperparam(), alpha = model.α, burnin = sampler.burnin, thinout = sampler.thinout, maxiter = sampler.maxiter)
+
+    end
+
+    function train(model::DPM, sampler::Gibbs, init::KMeansInitialisation, X::AbstractArray)
 
       # init
       (Z, G) = init_kmeans_dpmm(X, model.H, k = init.k)
@@ -101,7 +116,7 @@ module BNP
 
     end
 
-    function train(model::VCM, sampler::Gibbs, init::IncrementalInitialisation, X::Array)
+    function train(model::VCM, sampler::Gibbs, init::IncrementalInitialisation, X::AbstractArray)
 
       # init
       B = init_incremental_vcm(X, VCMHyperparam(); α = model.α)
@@ -133,6 +148,7 @@ module BNP
       Gibbs,
 
       # Initialisations
+      PrecomputedInitialisation,
       IncrementalInitialisation,
       RandomInitialisation,
       KMeansInitialisation,

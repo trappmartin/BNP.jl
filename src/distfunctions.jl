@@ -1,5 +1,40 @@
 using ArrayViews
 
+function fit(dType::Type{GaussianWishart}, X::AbstractArray)
+
+	(D, N) = size(X)
+
+	μ0 = vec( mean(X, 2) )
+	κ0 = 1.0
+	ν0 = convert(Float64, D)
+	Ψ = cov(X, vardim = 2) * 0.1
+
+	return GaussianWishart(μ0, κ0, ν0, Ψ)
+end
+
+function fit(dType::Type{NormalGamma}, X::AbstractArray)
+
+	(D, N) = size(X)
+	@assert D == 1
+
+	return NormalGamma(μ = mean(X), λ = 10.0, α = 1.0, β = 1.0)
+end
+
+function fit(dType::Type{MultinomialDirichlet}, X::SparseMatrixCSC)
+
+	(D, N) = size(X)
+
+	c = vec(sum(X, 2))
+
+	return MultinomialDirichlet(N, c, D, 1.0)
+end
+
+function fit(dType::Type{BinomialBeta}, X::AbstractArray)
+
+	(D, N) = size(X)
+	return BinomialBeta(D, α = 1.0, β = 1.0)
+end
+
 ###
 # add samples to distribution
 ###
@@ -71,6 +106,23 @@ function add_data!(d::MultinomialDirichlet, X)
         d.counts[x] += 1
     end
 
+    d.dirty = true
+
+    d
+end
+
+function add_data!(d::MultinomialDirichlet, X::SparseMatrixCSC{Int, Int})
+
+    # process samples
+    D = size(X, 1)
+    N = size(X, 2)
+
+    if D != d.D
+        throw(ArgumentError("Dimensions of X don't match with Dimensions of Multinomial Distribution (D = $(d.D))!"))
+    end
+
+    d.n += N
+    d.counts += sum(X, 2)
     d.dirty = true
 
     d
@@ -161,6 +213,22 @@ function remove_data!(d::MultinomialDirichlet, X)
     d
 end
 
+function remove_data!(d::MultinomialDirichlet, X::SparseMatrixCSC{Int, Int})
+
+   # process samples
+   D = size(X, 1)
+   N = size(X, 2)
+
+   if D != d.D
+      throw(ArgumentError("Dimensions of X don't match with Dimensions of Multinomial Distribution (D = $(d.D))!"))
+   end
+
+   d.n -= N
+   d.counts -= sum(X, 2)
+   d.dirty = true
+
+end
+
 function remove_data!(d::BinomialBeta, X)
 
 	(D, N) = size(X)
@@ -221,7 +289,7 @@ function logpred(d::GaussianWishart, x)
 	 C = Sigma * ((kappa + 1) / (kappa * (nu - d.D + 1)))
 
 	 if !isposdef(C)
-		 println("C is not positive definite! ", C)
+		 throw(ErrorException("C is not positive definite! (C: $(C))"))
 	 end
 
     dist = Distributions.MvTDist(nu - d.D + 1, mu, C)
@@ -307,8 +375,8 @@ function logpred(d::MultinomialDirichlet, x)
     mi = nnz(xx)
 
 	 if d.dirty
-		 d.z2 = lgamma(d.alpha0 + d.n)
-		 d.z3 = lgamma( d.alpha0/d.D + d.counts )
+		 d.Z2 = lgamma(d.alpha0 + d.n)
+		 d.Z3 = lgamma( d.alpha0/d.D + d.counts )
 
 		 d.dirty = false
 	 end
@@ -317,7 +385,34 @@ function logpred(d::MultinomialDirichlet, x)
 	l2 = d.Z2 - lgamma(d.alpha0 + d.n + m)
 	l3 = sum( lgamma( d.alpha0 / d.D + d.counts + xx ) - d.Z3 )
 
-    return l1 + l2 + l3
+    return [l1 + l2 + l3]
+end
+
+"Log PMF for MultinomialDirichlet."
+function logpred(d::MultinomialDirichlet, x::SparseMatrixCSC{Int, Int})
+
+   D = size(x, 1)
+   N = size(x, 2)
+
+   if N > 1
+      throw(ErrorException("Multiple samples are not supported yet!"))
+   end
+
+   m = sum(x)
+   mi = nnz(x)
+
+   if d.dirty
+      d.Z2 = lgamma(d.alpha0 + d.n)
+      d.Z3 = lgamma( d.alpha0/d.D + d.counts )
+
+      d.dirty = false
+   end
+
+	l1 = lgamma(m + 1) - sum(lgamma(mi + 1))
+	l2 = d.Z2 - lgamma(d.alpha0 + d.n + m)
+	l3 = sum( lgamma( d.alpha0 / d.D + d.counts + x ) - d.Z3 )
+
+   return [l1 + l2 + l3]
 end
 
 "Log PMF for BinomialBeta."
