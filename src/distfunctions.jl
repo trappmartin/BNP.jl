@@ -1,5 +1,36 @@
 using ArrayViews
 
+@doc doc"""
+Convert ConjugatePostDistribution to Distribution.
+
+convert(NormalGamma) -> Normal
+""" ->
+function convert(d::NormalGamma)
+	μ = d.sums ./ d.n
+	σ = sqrt((d.ssums / d.n) - (μ^2))
+	return Normal(μ, σ)
+end
+
+@doc doc"""
+Convert ConjugatePostDistribution to Distribution.
+
+convert(BinomialBeta) -> Binomial
+""" ->
+function convert(d::BinomialBeta)
+
+	# smoothing
+	if d.counts[1] == 0
+		counts = d.counts[1] + 0.0000001
+	elseif d.counts[1] == d.n
+		counts = d.counts[1] - 0.0000001
+	else
+		counts = d.counts[1]
+	end
+
+	p = counts / d.n
+	return Binomial(d.D, p)
+end
+
 function fit(dType::Type{GaussianWishart}, X::AbstractArray)
 
 	(D, N) = size(X)

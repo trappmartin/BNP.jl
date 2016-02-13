@@ -7,6 +7,8 @@ module BNP
     using ArrayViews
     using StatsBase
 
+	import Base.convert
+
     # source files
     include("distributions.jl")
     include("distfunctions.jl")
