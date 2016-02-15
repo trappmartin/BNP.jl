@@ -31,7 +31,7 @@ function convert(d::BinomialBeta)
 	return Binomial(d.D, p)
 end
 
-function fit(dType::Type{GaussianWishart}, X::AbstractArray)
+function fit(dType::Type{GaussianWishart}, X::AbstractArray; useCov = true)
 
 	(D, N) = size(X)
 
@@ -39,6 +39,10 @@ function fit(dType::Type{GaussianWishart}, X::AbstractArray)
 	κ0 = 1.0
 	ν0 = convert(Float64, D)
 	Ψ = cov(X, vardim = 2) * 0.1
+
+	if !useCov
+		Ψ = eye(D) * 10
+	end
 
 	return GaussianWishart(μ0, κ0, ν0, Ψ)
 end
