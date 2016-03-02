@@ -7,7 +7,14 @@ convert(NormalGamma) -> Normal
 """ ->
 function convert(d::NormalGamma)
 	μ = d.sums ./ d.n
-	σ = sqrt((d.ssums / d.n) - (μ^2))
+	σ = sqrt((d.ssums / (d.n - 1)) - (μ^2))
+
+	σ += 1e-8
+
+	if isnan(σ) | isinf(σ)
+		σ = 1.0
+	end
+
 	return Normal(μ, σ)
 end
 
