@@ -221,7 +221,7 @@ function compute_energy!{T}(B::HDPData, X::Vector{Vector{T}})
         c = 0
 
         for k = 1:length(B.distributions)
-          p = exp( logpred( B.distributions[k], data[i] ) ) * B.weights[j][k]
+          p = exp( logpred( B.distributions[k], data[i] )[1] ) * B.weights[j][k]
 
           # only sum over actual values (excluding nans)
           if p == p
