@@ -67,6 +67,27 @@ end
 Base.show(io::IO, d::NormalGamma) =
     show_multline(io, d, [(:μ0, d.μ0), (:λ0, d.λ0), (:α0, d.α0), (:β0, d.β0)])
 
+# Normal - Normal
+type NormalNormal <: ConjugatePostDistribution
+
+	# sufficient statistics
+	n::Int
+	sums::Float64
+  ssums::Float64
+
+	# model parameters
+	μ0::Float64
+	σ0::Float64
+
+	function NormalNormal(;μ0 = 0.0, σ0 = 1.0)
+		new(0, 0.0, 0.0, μ0, σ0)
+	end
+
+end
+
+Base.show(io::IO, d::NormalNormal) =
+    show_multline(io, d, [(:μ0, d.μ0), (:σ0, d.σ0)])
+
 # Multinomial with Dirichlet Prior
 type MultinomialDirichlet <: ConjugatePostDistribution
 

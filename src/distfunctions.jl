@@ -128,6 +128,28 @@ function add_data!(d::NormalGamma, X)
 
 end
 
+function add_data!(d::NormalNormal, X)
+
+	# process samples
+	if ndims(X) == 1
+		 N = 1
+		 (D,) = size(X)
+	else
+		 (D, N) = size(X)
+	end
+
+	if D != 1
+		 throw(ArgumentError("Data is not univariate!"))
+	end
+
+	d.n += N
+	d.sums += sum(X)
+	d.ssums += sum(X.^2)
+
+	d
+
+end
+
 function add_data!(d::MultinomialDirichlet, X)
 
     # process samples
@@ -210,6 +232,27 @@ function remove_data!(d::GaussianWishart, X)
 end
 
 function remove_data!(d::NormalGamma, X)
+
+    # process samples
+    if ndims(X) == 1
+        N = 1
+        (D,) = size(X)
+    else
+        (D, N) = size(X)
+    end
+
+    if D != 1
+        throw(ArgumentError("Data is not univariate!"))
+    end
+
+    d.n -= N
+    d.sums -= sum(X)
+    d.ssums -= sum(X.^2)
+
+    d
+end
+
+function remove_data!(d::NormalNormal, X)
 
     # process samples
     if ndims(X) == 1
@@ -359,7 +402,7 @@ function tlogpdf(x, df, mean, sigma)
     p = v - log((1 + p).^((df+1) / 2))
 
     if p != p
-      println(p)
+      println("P(x|Θ): ", p, " μ: ", mean, " σ: ", sigma)
     end
 
     return p
@@ -376,7 +419,7 @@ function logpred(d::NormalGamma, x)
       mean = d.μ0
       sigma = ( d.β0 * (d.λ0 + 1) ) / (d.λ0 * d.α0)
 
-      return tlogpdf(x, df, mean, sigma) - tlogpdf(mean, df, mean, sigma)
+      return tlogpdf(x, df, mean, sigma) #- tlogpdf(mean, df, mean, sigma)
    end
 
 
@@ -398,7 +441,40 @@ function logpred(d::NormalGamma, x)
     mean = μ
     sigma = ( β * (λ + 1) ) / (λ * α)
 
-    return tlogpdf(x, df, mean, sigma) - tlogpdf(mean, df, mean, sigma)
+    return tlogpdf(x, df, mean, sigma) #- tlogpdf(mean, df, mean, sigma)
+end
+
+"Log PDF for NormalNormal."
+function logpred(d::NormalNormal, x)
+
+   if d.n == 0
+		 if length(x) > 1
+			 return Float64[normlogpdf(d.μ0, d.σ0, xi) for xi in x]
+		 else
+			 return normlogpdf(d.μ0, d.σ0, x)
+		 end
+   end
+
+    # statistics
+    sample_mu = d.sums / d.n
+		sample_sigma = sqrt( (d.n * d.ssums - d.sums^2) / (d.n*(d.n-1)) )
+
+    # make sure values are not NaN
+    sample_mu = sample_mu != sample_mu ? 0 : sample_mu
+
+    # compute posterior parameters
+		a = (d.μ0 / d.σ0) + (d.sums / sample_sigma)
+		b = (1.0/d.σ0) + (d.n / sample_sigma)
+		μ = a / b
+
+    σ = ( (1.0/d.σ0) + (d.n/sample_sigma) )^-1.0
+
+		if length(x) > 1
+			return Float64[normlogpdf(μ, σ, xi) for xi in x]
+		else
+			return normlogpdf(μ, σ, x)
+		end
+
 end
 
 "Log PMF for MultinomialDirichlet."

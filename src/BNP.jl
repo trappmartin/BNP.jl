@@ -6,6 +6,7 @@ module BNP
     using Clustering
     using ArrayViews
     using StatsBase
+    using StatsFuns
 
 	import Base.convert
 
@@ -168,9 +169,10 @@ module BNP
       # Distributions
       ConjugatePostDistribution,
       GaussianWishart,
-	  NormalGamma,
+	    NormalGamma,
+      NormalNormal,
       MultinomialDirichlet,
-	  BinomialBeta,
+	    BinomialBeta,
 
       # training method
       train,

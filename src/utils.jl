@@ -81,6 +81,8 @@ function rand_indices(prob::Array{Float64}; dim = 1)
             end
         end
 
+        return length(prob)
+
 #     else
 
 #         # TODO: rewrite this part to be faster!
