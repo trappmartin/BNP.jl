@@ -169,6 +169,7 @@ module BNP
       # Distributions
       ConjugatePostDistribution,
       GaussianWishart,
+      GaussianDiagonal,
 	    NormalGamma,
       NormalNormal,
       MultinomialDirichlet,

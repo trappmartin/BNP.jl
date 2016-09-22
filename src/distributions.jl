@@ -88,6 +88,18 @@ end
 Base.show(io::IO, d::NormalNormal) =
     show_multline(io, d, [(:μ0, d.μ0), (:σ0, d.σ0)])
 
+# Gaussian with Diagonal Covariance (NormalGamma Distributions)
+type GaussianDiagonal <: ConjugatePostDistribution
+
+    # sufficient statistics
+    dists::Vector{NormalNormal}
+
+    function GaussianDiagonal(dists::Vector{NormalNormal})
+        new(dists)
+    end
+
+end
+
 # Multinomial with Dirichlet Prior
 type MultinomialDirichlet <: ConjugatePostDistribution
 

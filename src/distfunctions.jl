@@ -128,6 +128,14 @@ function add_data!(d::NormalGamma, X)
 
 end
 
+function add_data!(d::GaussianDiagonal, X)
+	for (dim, dist) in enumerate(d.dists)
+		add_data!(dist, X[dim,:])
+	end
+
+	d
+end
+
 function add_data!(d::NormalNormal, X)
 
 	# process samples
@@ -252,6 +260,14 @@ function remove_data!(d::NormalGamma, X)
     d
 end
 
+function remove_data!(d::GaussianDiagonal, X)
+	for (dim, dist) in enumerate(d.dists)
+		remove_data!(dist, X[dim,:])
+	end
+
+	d
+end
+
 function remove_data!(d::NormalNormal, X)
 
     # process samples
@@ -312,6 +328,8 @@ function remove_data!(d::MultinomialDirichlet, X::SparseMatrixCSC{Int, Int})
    d.counts -= sum(X, 2)
    d.dirty = true
 
+	 d
+
 end
 
 function remove_data!(d::BinomialBeta, X)
@@ -352,7 +370,7 @@ function logpred(d::GaussianWishart, x)
 		C = d.Sigma0 * ((d.kappa0 + 1) / (d.kappa0 * (d.nu0 - d.D + 1)))
 
 		dist = Distributions.MvTDist(d.nu0 - d.D + 1, d.mu0, C)
-	   return Distributions.logpdf(dist, x) - Distributions.logpdf(dist, d.mu0)
+	   return Distributions.logpdf(dist, x)
 
 	end
 
@@ -378,7 +396,7 @@ function logpred(d::GaussianWishart, x)
 	 end
 
     dist = Distributions.MvTDist(nu - d.D + 1, mu, C)
-    return Distributions.logpdf(dist, x) - Distributions.logpdf(dist, mu)
+    return Distributions.logpdf(dist, x)
 
 end
 
@@ -397,16 +415,12 @@ function tlogpdf(x, df, mean, sigma)
     xx = x .- mean
     xx = (xx ./ sqrt(sigma)).^2
 
+		#p = v - shdfhdim * log1p(xx / df)
     p = 1/df * xx
 
     p = v - log((1 + p).^((df+1) / 2))
 
-    if p != p
-      println("P(x|Θ): ", p, " μ: ", mean, " σ: ", sigma)
-    end
-
     return p
-    #return v - shdfhdim * log1p(xx / df)
 
 end
 
@@ -419,7 +433,7 @@ function logpred(d::NormalGamma, x)
       mean = d.μ0
       sigma = ( d.β0 * (d.λ0 + 1) ) / (d.λ0 * d.α0)
 
-      return tlogpdf(x, df, mean, sigma) #- tlogpdf(mean, df, mean, sigma)
+      return tlogpdf(x, df, mean, sigma)
    end
 
 
@@ -441,40 +455,37 @@ function logpred(d::NormalGamma, x)
     mean = μ
     sigma = ( β * (λ + 1) ) / (λ * α)
 
-    return tlogpdf(x, df, mean, sigma) #- tlogpdf(mean, df, mean, sigma)
+		return tlogpdf(x, df, mean, sigma)
+end
+
+function logpred(d::GaussianDiagonal, x)
+	return vec(sum([logpred(di, x[dim, :]) for (dim, di) in enumerate(d.dists)]))
 end
 
 "Log PDF for NormalNormal."
 function logpred(d::NormalNormal, x)
+	return Float64[logpred(d, xi) for xi in x]
+end
+
+function logpred(d::NormalNormal, x::Number)
 
    if d.n == 0
-		 if length(x) > 1
-			 return Float64[normlogpdf(d.μ0, d.σ0, xi) for xi in x]
-		 else
-			 return normlogpdf(d.μ0, d.σ0, x)
-		 end
+		 return normlogpdf(d.μ0, d.σ0, x)
    end
 
-    # statistics
-    sample_mu = d.sums / d.n
-		sample_sigma = sqrt( (d.n * d.ssums - d.sums^2) / (d.n*(d.n-1)) )
+  # statistics
+  sample_mu = d.sums / d.n
+	sample_var = (d.n * d.ssums - d.sums^2) / (d.n*(d.n-1))
+	sample_var = (d.ssums - (d.sums^2)/d.n) / (d.n - 1)
+	sample_var = 10.0
 
-    # make sure values are not NaN
-    sample_mu = sample_mu != sample_mu ? 0 : sample_mu
+	# make sure values are not NaN
+	sample_mu = sample_mu != sample_mu ? 0 : sample_mu
 
-    # compute posterior parameters
-		a = (d.μ0 / d.σ0) + (d.sums / sample_sigma)
-		b = (1.0/d.σ0) + (d.n / sample_sigma)
-		μ = a / b
+	σ = (sample_var * d.σ0) / (d.n * d.σ0 + sample_var)
+  μ = σ * (d.n*sample_mu/sample_var + d.μ0/d.σ0)
 
-    σ = ( (1.0/d.σ0) + (d.n/sample_sigma) )^-1.0
-
-		if length(x) > 1
-			return Float64[normlogpdf(μ, σ, xi) for xi in x]
-		else
-			return normlogpdf(μ, σ, x)
-		end
-
+	return normlogpdf(μ, sqrt(σ), x)
 end
 
 "Log PMF for MultinomialDirichlet."
