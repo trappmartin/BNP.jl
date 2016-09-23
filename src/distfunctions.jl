@@ -214,6 +214,26 @@ function add_data!(d::BinomialBeta, X)
 	d
 end
 
+function add_data!(d::BernoulliBeta, X::AbstractArray)
+
+	for x in X
+		add_data!(d, x)
+	end
+
+	d
+end
+
+function add_data!(d::BernoulliBeta, X::Bool)
+
+	if X
+		d.successes += 1
+	end
+
+	d.n += 1
+
+	d
+end
+
 ###
 # remove samples from distribution
 ###
@@ -342,6 +362,28 @@ function remove_data!(d::BinomialBeta, X)
 
 	d.n -= N
    d.counts -= sum(X, 2)
+
+	d
+end
+
+function remove_data!(d::BernoulliBeta, X::AbstractArray)
+
+	for x in X
+		remove_data!(d, x)
+	end
+
+	d
+end
+
+function remove_data!(d::BernoulliBeta, X::Bool)
+
+	if !isdistempty(d)
+		if X
+			d.successes -= 1
+		end
+
+		d.n -= 1
+	end
 
 	d
 end
@@ -557,4 +599,18 @@ function logpred(d::BinomialBeta, x)
 
    return l1 + l2
 
+end
+
+"Log PMF for BernoulliBeta."
+function logpred(d::BernoulliBeta, X::AbstractArray)
+	return Float64[logpred(d, x) for x in X]
+end
+
+function logpred(d::BernoulliBeta, X::Bool)
+
+  	# posterior
+		α = d.α + d.successes
+		β = d.β + d.n - d.successes
+
+   return log(α) - log(α + β)
 end

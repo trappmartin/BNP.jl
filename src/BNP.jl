@@ -174,6 +174,7 @@ module BNP
       NormalNormal,
       MultinomialDirichlet,
 	    BinomialBeta,
+      BernoulliBeta,
 
       # training method
       train,

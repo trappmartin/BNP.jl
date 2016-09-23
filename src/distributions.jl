@@ -133,10 +133,28 @@ type MultinomialDirichlet <: ConjugatePostDistribution
 
 end
 
+# Bernoulli with Beta Prior
+type BernoulliBeta <: ConjugatePostDistribution
+
+	# sufficient statistics
+	successes::Int
+  n::Int
+
+	# beta distribution parameters
+	α::Float64
+	β::Float64
+
+	function BernoulliBeta(;α = 1.0, β = 1.0)
+		new(0, 0, α, β)
+	end
+
+end
+
+
 # Binomial with Beta Prior
 type BinomialBeta <: ConjugatePostDistribution
 
-    D::Int
+  D::Int
 
 	# sufficient statistics
 	n::Int
