@@ -136,6 +136,16 @@ function add_data!(d::GaussianDiagonal, X)
 	d
 end
 
+function add_data!(d::NormalNormal, X::Real)
+
+	d.n += 1
+	d.sums += X
+	d.ssums += X^2
+
+	d
+
+end
+
 function add_data!(d::NormalNormal, X)
 
 	# process samples
@@ -286,6 +296,15 @@ function remove_data!(d::GaussianDiagonal, X)
 	end
 
 	d
+end
+
+function remove_data!(d::NormalNormal, X::Real)
+
+    d.n -= 1
+    d.sums -= X
+    d.ssums -= X^2
+
+    d
 end
 
 function remove_data!(d::NormalNormal, X)
