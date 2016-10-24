@@ -65,18 +65,18 @@ end
 @doc doc"""
 Initialization of dirichlet process mixture model using K-Means.
 """ ->
-function init_kmeans_dpmm{T <: Real}(X::AbstractArray{T}, G0::ConjugatePostDistribution; k = 2, maxiterations = 10)
+function init_kmeans_dpmm{T <: Real}(X::AbstractMatrix{T}, G0::ConjugatePostDistribution; k = 2, maxiterations = 10)
 
-  (D, N) = size(X)
+  (N, D) = size(X)
 
 	if issparse(X)
     if !(T == Float64)
-		  R = Clustering.kmeans(float(full(X)), k; maxiter = maxiterations)
+		  R = Clustering.kmeans(float(full(X')), k; maxiter = maxiterations)
     else
-      R = Clustering.kmeans(full(X), k; maxiter = maxiterations)
+      R = Clustering.kmeans(full(X'), k; maxiter = maxiterations)
     end
 	else
-		R = Clustering.kmeans(X, k; maxiter = maxiterations)
+		R = Clustering.kmeans(X', k; maxiter = maxiterations)
 	end
 
   Z = assignments(R)
@@ -87,7 +87,7 @@ function init_kmeans_dpmm{T <: Real}(X::AbstractArray{T}, G0::ConjugatePostDistr
     idx = find(Z .== c)
 
     if length(idx) > 0
-      G[c] = add_data(G0, X[:,idx])
+      G[c] = add_data(G0, X[idx,:])
     else
       G[c] = deepcopy(G0)
     end
@@ -101,7 +101,7 @@ Initialization of dirichlet process mixture model using random assignments.
 """ ->
 function init_random_dpmm(X::AbstractArray, G0::ConjugatePostDistribution; k = 2)
 
-  (D, N) = size(X)
+  (N, D) = size(X)
 
   Z = 1 + (randperm(N) % k)
 
@@ -111,7 +111,7 @@ function init_random_dpmm(X::AbstractArray, G0::ConjugatePostDistribution; k = 2
     idx = find(Z .== c)
 
     if length(idx) > 0
-      G[c] = add_data(G0, X[:,idx])
+      G[c] = add_data(G0, X[idx,:])
     else
       G[c] = deepcopy(G0)
     end
@@ -125,7 +125,7 @@ Initialization of dirichlet process mixture model using precomputed assignments.
 """ ->
 function init_precomputed_dpmm(X::AbstractArray, G0::ConjugatePostDistribution, Z::Array{Int})
 
-  (D, N) = size(X)
+  (N, D) = size(X)
 
   G = Array{ConjugatePostDistribution}(N)
 
@@ -133,7 +133,7 @@ function init_precomputed_dpmm(X::AbstractArray, G0::ConjugatePostDistribution, 
     idx = find(Z .== c)
 
     if length(idx) > 0
-      G[c] = add_data(G0, X[:,idx])
+      G[c] = add_data(G0, X[idx,:])
     else
       G[c] = deepcopy(G0)
     end
@@ -153,7 +153,7 @@ function cgibbs_crp_dpmm!(B::DPMBuffer)
 
   for index in B.ids
 
-    x = B.X[:, index]
+    x = @view B.X[index, :]
 
     # get assignment
     z = B.Z[index]
@@ -227,13 +227,13 @@ function compute_energy!(B::DPMData, X::AbstractArray)
 
   E = 0.00001
 
-  for xi in 1:size(X, 2)
+  for xi in 1:size(X, 1)
 
     pp = 0.0
     c = 0
 
     for i = 1:length(B.weights)
-      p = exp( logpred( B.distributions[i], X[:,xi] )[1] ) * B.weights[i]
+      p = exp( logpred( B.distributions[i], X[xi, :] )[1] ) * B.weights[i]
 
       # only sum over actual values (excluding nans)
       if p == p
@@ -246,14 +246,14 @@ function compute_energy!(B::DPMData, X::AbstractArray)
 
   end
 
-  B.energy = log( E / size(X, 2) )
+  B.energy = log( E / size(X, 1) )
 
 end
 
 "Training Dirichlet Process Mixture Model using collabsed Gibbs sampling"
 function train_cgibbs_dpmm(X::AbstractArray, G0::ConjugatePostDistribution, Z::Array{Int}, G::Array{ConjugatePostDistribution}, hyper::DPMHyperparam; alpha = 1.0, burnin = 0, thinout = 1, maxiter = 100)
 
-  (D, N) = size(X)
+  (N, D) = size(X)
 
   results = DPMData[]
 

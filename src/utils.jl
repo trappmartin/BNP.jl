@@ -1,4 +1,3 @@
-using Distributions
 
 function random_concentration_parameter(alpha::Float64, gamma_a::Float64, gamma_b::Float64, N::Int, k::Int; maxiter = 1)
 
@@ -57,45 +56,22 @@ function random_concentration_parameter(alpha::Float64, gamma_a::Float64, gamma_
     alpha
 end
 
-function rand_indices(prob::Array{Float64}; dim = 1)
+function rand_indices(prob::Vector{Float64})
 
-    if ndims(prob) == 1
-        N = 1
-        (M,) = size(prob)
-    else
-        (N,M) = size(prob)
+    max = sum(prob)
+    csum = 0.0
+    thres = rand()
+
+    for i in 1:length(prob)
+
+        csum += prob[i]
+
+        if csum >= thres * max
+            return convert(Int, i)
+        end
     end
 
-    #if N == 1
-
-        max = sum(prob)
-        csum = 0.0
-        thres = rand()
-
-        for i in 1:length(prob)
-
-            csum += prob[i]
-
-            if csum >= thres * max
-                return convert(Int, i)
-            end
-        end
-
-        return length(prob)
-
-#     else
-
-#         # TODO: rewrite this part to be faster!
-
-#         # prob needs to be normalized
-#         cdf = cumsum(prob, dim)
-
-#         # make sure cdf goes to 1
-#         cdf[end] = 1.0
-
-#         # rand produces unexpected dim array, has to be transposed\
-#         return 1 + (sum((rand(N) .> cdf)', dim))
-#     end
+    return length(prob)
 end
 
 "Construct a polynomial from its root."

@@ -18,19 +18,19 @@ D = 2 # 2 dimensional data
 N = 400 # number of data points
 
 # data matrix
-X = zeros(D, N)
+X = zeros(N, D)
 
-X[1,:] = convert(Array, Data[:x])
-X[2,:] = convert(Array, Data[:y])
+X[:,1] = convert(Array, Data[:x])
+X[:,2] = convert(Array, Data[:y])
 
 # init base distribution parameters
-mu0 = vec(mean(X, 2))
+mu0 = mean(X, 1)
 kappa0 = 9.0
 nu0 = 5.0
 Sigma0 = eye(D) * 10
 
 # base distribution and concentration parameter (Gaussian with Normal Inverse Wishart Prior)
-H = GaussianWishart(mu0, kappa0, nu0, Sigma0)
+H = WishartGaussian(vec(mu0), kappa0, nu0, Sigma0)
 
 # train Dirichlet Process Mixture Model
 models = train(DPM(H), Gibbs(), RandomInitialisation(k = 10), X);

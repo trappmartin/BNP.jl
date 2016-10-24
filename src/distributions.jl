@@ -1,7 +1,17 @@
+export WishartGaussian, GaussianDiagonal, DirichletMultinomial, GammaNormal, NormalNormal, BetaBernoulli, ConjugatePostDistribution
+
 abstract ConjugatePostDistribution
 
+abstract UnivariateConjugatePostDistribution <: ConjugatePostDistribution
+abstract DiscreteUnivariateConjugatePostDistribution <: UnivariateConjugatePostDistribution
+abstract ContinuousUnivariateConjugatePostDistribution <: UnivariateConjugatePostDistribution
+
+abstract MultivariateConjugatePostDistribution <: ConjugatePostDistribution
+abstract DiscreteMultivariateConjugatePostDistribution <: MultivariateConjugatePostDistribution
+abstract ContinuousMultivariateConjugatePostDistribution <: MultivariateConjugatePostDistribution
+
 # Gaussian with Normal Inverse Wishart Prior
-type GaussianWishart <: ConjugatePostDistribution
+type WishartGaussian <: ContinuousMultivariateConjugatePostDistribution
 
     D::Int
 
@@ -9,7 +19,6 @@ type GaussianWishart <: ConjugatePostDistribution
     n::Int
     sums::Vector{Float64}
     ssums::Array{Float64}
-    #TODO: use Float32, SSE -> simd
 
     # base model parameters
     mu0::Vector{Float64}
@@ -17,7 +26,7 @@ type GaussianWishart <: ConjugatePostDistribution
     nu0::Float64
     Sigma0::Array{Float64}
 
-    function GaussianWishart(mu::Vector{Float64}, kappa::Float64,
+    function WishartGaussian(mu::Vector{Float64}, kappa::Float64,
             nu::Float64, Sigma::Array{Float64})
 
         d = length(mu)
@@ -25,13 +34,13 @@ type GaussianWishart <: ConjugatePostDistribution
         new(d, 0, zeros(d), zeros(d, d), mu, kappa, nu, Sigma)
     end
 
-    function GaussianWishart(D::Int, mu::Vector{Float64}, kappa::Float64,
+    function WishartGaussian(D::Int, mu::Vector{Float64}, kappa::Float64,
             nu::Float64, Sigma::Array{Float64})
 
         new(D, 0, zeros(d), zeros(d, d), mu, kappa, nu, Sigma)
     end
 
-    function GaussianWishart(D::Int,
+    function WishartGaussian(D::Int,
             n::Int, sums::Vector{Float64}, ssums::Array{Float64},
             mu::Vector{Float64}, kappa::Float64,
             nu::Float64, Sigma::Array{Float64})
@@ -41,16 +50,16 @@ type GaussianWishart <: ConjugatePostDistribution
 
 end
 
-Base.show(io::IO, d::GaussianWishart) =
+Base.show(io::IO, d::WishartGaussian) =
     show_multline(io, d, [(:dim, d.D), (:μ0, d.mu0), (:Σ0, d.Sigma0), (:κ0, d.kappa0), (:ν0, d.nu0)])
 
-# Normal with Gamma
-type NormalGamma <: ConjugatePostDistribution
+# Normal with Gamma prior
+type GammaNormal <: ContinuousUnivariateConjugatePostDistribution
 
 	# sufficient statistics
 	n::Int
 	sums::Float64
-    ssums::Float64
+  ssums::Float64
 
 	# model parameters
 	μ0::Float64
@@ -58,17 +67,17 @@ type NormalGamma <: ConjugatePostDistribution
 	α0::Float64
 	β0::Float64
 
-	function NormalGamma(;μ = 0.0, λ = 1.0, α = 1.0, β = 1.0)
+	function GammaNormal(;μ = 0.0, λ = 1.0, α = 1.0, β = 1.0)
 		new(0, 0.0, 0.0, μ, λ, α, β)
 	end
 
 end
 
-Base.show(io::IO, d::NormalGamma) =
+Base.show(io::IO, d::GammaNormal) =
     show_multline(io, d, [(:μ0, d.μ0), (:λ0, d.λ0), (:α0, d.α0), (:β0, d.β0)])
 
-# Normal - Normal
-type NormalNormal <: ConjugatePostDistribution
+# Normal with Normal prior
+type NormalNormal <: ContinuousUnivariateConjugatePostDistribution
 
 	# sufficient statistics
 	n::Int
@@ -88,20 +97,20 @@ end
 Base.show(io::IO, d::NormalNormal) =
     show_multline(io, d, [(:μ0, d.μ0), (:σ0, d.σ0)])
 
-# Gaussian with Diagonal Covariance (NormalGamma Distributions)
-type GaussianDiagonal <: ConjugatePostDistribution
+# Gaussian with Diagonal Covariance
+type GaussianDiagonal{T <: ContinuousUnivariateConjugatePostDistribution} <: ContinuousMultivariateConjugatePostDistribution
 
     # sufficient statistics
-    dists::Vector{NormalNormal}
+    dists::Vector{T}
 
-    function GaussianDiagonal(dists::Vector{NormalNormal})
+    function GaussianDiagonal(dists::Vector{T})
         new(dists)
     end
 
 end
 
 # Multinomial with Dirichlet Prior
-type MultinomialDirichlet <: ConjugatePostDistribution
+type DirichletMultinomial <: DiscreteMultivariateConjugatePostDistribution
 
     D::Int
 
@@ -112,21 +121,21 @@ type MultinomialDirichlet <: ConjugatePostDistribution
     # base model parameters
     alpha0::Float64
 
-	# cache
-	dirty::Bool
-	Z2::Float64
-	Z3::Array{Float64}
+  	# cache
+  	dirty::Bool
+  	Z2::Float64
+  	Z3::Array{Float64}
 
-    function MultinomialDirichlet(D::Int, alpha::Float64)
+    function DirichletMultinomial(D::Int, alpha::Float64)
         new(D, 0, sparsevec(zeros(D)), alpha, true, 0.0, Array{Float64}(0))
     end
 
-    function MultinomialDirichlet(N::Int, counts::Vector{Int},
+    function DirichletMultinomial(N::Int, counts::Vector{Int},
                             D::Int, alpha::Float64)
         new(D, N, sparsevec(counts), alpha, true, 0.0, Array{Float64}(0))
     end
 
-    function MultinomialDirichlet(N::Int, counts::SparseMatrixCSC{Int,Int},
+    function DirichletMultinomial(N::Int, counts::SparseMatrixCSC{Int,Int},
                             D::Int, alpha::Float64)
         new(D, N, counts, alpha, true, 0.0, Array{Float64}(0))
     end
@@ -134,7 +143,7 @@ type MultinomialDirichlet <: ConjugatePostDistribution
 end
 
 # Bernoulli with Beta Prior
-type BernoulliBeta <: ConjugatePostDistribution
+type BetaBernoulli <: DiscreteUnivariateConjugatePostDistribution
 
 	# sufficient statistics
 	successes::Int
@@ -144,28 +153,8 @@ type BernoulliBeta <: ConjugatePostDistribution
 	α::Float64
 	β::Float64
 
-	function BernoulliBeta(;α = 1.0, β = 1.0)
+	function BetaBernoulli(;α = 1.0, β = 1.0)
 		new(0, 0, α, β)
-	end
-
-end
-
-
-# Binomial with Beta Prior
-type BinomialBeta <: ConjugatePostDistribution
-
-  D::Int
-
-	# sufficient statistics
-	n::Int
-	counts::Array{Int}
-
-	# beta distribution parameters
-	α::Float64
-	β::Float64
-
-	function BinomialBeta(D::Int;α = 1.0, β = 1.0)
-		new(D, 0, zeros(D), α, β)
 	end
 
 end

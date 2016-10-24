@@ -1,10 +1,7 @@
-VERSION >= v"0.4.0-dev+6521" && __precompile__(true)
-
 module BNP
 
     using Distributions
     using Clustering
-    using ArrayViews
     using StatsBase
     using StatsFuns
 
@@ -165,16 +162,6 @@ module BNP
       DPMData,
       VCMData,
       HDPData,
-
-      # Distributions
-      ConjugatePostDistribution,
-      GaussianWishart,
-      GaussianDiagonal,
-	    NormalGamma,
-      NormalNormal,
-      MultinomialDirichlet,
-	    BinomialBeta,
-      BernoulliBeta,
 
       # training method
       train,
